@@ -21,7 +21,7 @@ class SuperAdminSeeder extends Seeder
 
         User::create([
             'name' => 'Super Admin',
-            'email' => 'superadmin@ttd.local',
+            'email' => 'fikrifahruroji@uniga.ac.id',
             'password' => Hash::make('SuperAdmin123!'),
             'role' => 'super_admin',
             'department_id' => null,
@@ -31,7 +31,7 @@ class SuperAdminSeeder extends Seeder
         ]);
 
         $this->command->info('Super admin created successfully.');
-        $this->command->info('Email: superadmin@ttd.local');
+        $this->command->info('Email: fikrifahruroji@uniga.ac.id');
         $this->command->info('Password: SuperAdmin123!');
     }
 }
