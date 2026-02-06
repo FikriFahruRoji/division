@@ -104,12 +104,16 @@ class SigningService
             // Notify all signers at once
             $document->signerAssignments()
                 ->where('status', 'pending')
-                ->each(fn($assignment) => $assignment->markAsNotified());
+                ->each(function($assignment) {
+                    $assignment->markAsNotified();
+                    $assignment->signer->notify(new \App\Notifications\SignatureRequired($assignment));
+                });
         } else {
             // Sequential or single - notify next in order
             $nextAssignment = $document->getNextSigner();
             if ($nextAssignment) {
                 $nextAssignment->markAsNotified();
+                $nextAssignment->signer->notify(new \App\Notifications\SignatureRequired($nextAssignment));
             }
         }
     }

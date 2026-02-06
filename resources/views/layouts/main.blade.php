@@ -116,12 +116,68 @@
                 </a>
                 @endif
                 
-                <!-- Notification Bell (Placeholder) -->
-                <button class="relative p-2 text-text-secondary hover:text-primary hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                    <span class="material-symbols-outlined">notifications</span>
-                    <span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border border-white dark:border-zinc-900"></span>
-                </button>
-            </div>
+                <!-- Notification Bell -->
+                <div class="relative" x-data="{ notificationOpen: false }">
+                    <button @click="notificationOpen = !notificationOpen" class="relative p-2 text-text-secondary hover:text-primary hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                        <span class="material-symbols-outlined">notifications</span>
+                        @if(auth()->user()->unreadNotifications->count() > 0)
+                            <span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border border-white dark:border-zinc-900"></span>
+                        @endif
+                    </button>
+
+                    <!-- Notification Dropdown -->
+                    <div x-cloak x-show="notificationOpen" @click.away="notificationOpen = false" 
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 translate-y-2"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 translate-y-2"
+                         class="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-border-color dark:border-zinc-700 overflow-hidden z-[60]">
+                        
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-border-color dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50">
+                            <h3 class="text-sm font-semibold text-text-main dark:text-white">Notifikasi</h3>
+                            @if(auth()->user()->unreadNotifications->count() > 0)
+                                <form action="{{ route('notifications.readAll') }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="text-xs text-primary hover:text-primary-hover font-medium">Tandai semua dibaca</button>
+                                </form>
+                            @endif
+                        </div>
+
+                        <div class="max-h-96 overflow-y-auto">
+                            @forelse(auth()->user()->notifications()->latest()->take(10)->get() as $notification)
+                                <a href="{{ route('notifications.read', $notification->id) }}" class="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors border-b border-gray-100 dark:border-zinc-800 last:border-0 {{ $notification->read_at ? 'opacity-70' : 'bg-primary/5' }}">
+                                    <div class="flex gap-3">
+                                        <div class="mt-1 shrink-0">
+                                            @if(($notification->data['type'] ?? '') == 'signature_required')
+                                                <span class="material-symbols-outlined text-primary text-xl">draw</span>
+                                            @else
+                                                <span class="material-symbols-outlined text-gray-400 text-xl">notifications</span>
+                                            @endif
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm text-text-main dark:text-gray-200 {{ $notification->read_at ? '' : 'font-semibold' }}">
+                                                {{ $notification->data['message'] ?? 'Notifikasi baru' }}
+                                            </p>
+                                            <p class="text-xs text-text-secondary mt-1">{{ $notification->created_at->diffForHumans() }}</p>
+                                        </div>
+                                        @if(!$notification->read_at)
+                                            <div class="mt-2 shrink-0">
+                                                <div class="size-2 bg-primary rounded-full"></div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </a>
+                            @empty
+                                <div class="px-4 py-8 text-center text-text-secondary">
+                                    <span class="material-symbols-outlined text-4xl mb-2 opacity-50">notifications_off</span>
+                                    <p class="text-sm">Tidak ada notifikasi</p>
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>            </div>
         </header>
 
         <!-- Page Content -->

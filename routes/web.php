@@ -48,6 +48,14 @@ Route::middleware(['auth', 'verified', 'throttle:web'])->group(function () {
     
     /*
     |----------------------------------------------------------------------
+    | Notification Routes
+    |----------------------------------------------------------------------
+    */
+    Route::get('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
+    
+    /*
+    |----------------------------------------------------------------------
     | Document Routes (Admin & Operator) - with upload throttle
     |----------------------------------------------------------------------
     */
