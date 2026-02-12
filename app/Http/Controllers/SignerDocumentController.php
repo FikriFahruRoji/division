@@ -74,7 +74,7 @@ public function index(Request $request)
     $query = Document::query()
         ->where(function ($q) use ($user) {
             // Documents uploaded by user
-            $q->where('created_by', $user->id)
+            $q->where('creator_id', $user->id)
               // OR Documents where user is assigned as signer
               ->orWhereHas('signerAssignments', function ($sq) use ($user) {
                   $sq->where('signer_id', $user->id);
@@ -84,7 +84,7 @@ public function index(Request $request)
 
     // Filter by tab
     if ($tab === 'uploaded') {
-        $query->where('created_by', $user->id);
+        $query->where('creator_id', $user->id);
     } elseif ($tab === 'signed') {
         $query->whereHas('signerAssignments', function ($sq) use ($user) {
             $sq->where('signer_id', $user->id)->where('status', 'signed');
@@ -100,10 +100,10 @@ public function index(Request $request)
     // Count for tabs
     $counts = [
         'all' => Document::where(function ($q) use ($user) {
-            $q->where('created_by', $user->id)
+            $q->where('creator_id', $user->id)
               ->orWhereHas('signerAssignments', fn($sq) => $sq->where('signer_id', $user->id));
         })->count(),
-        'uploaded' => Document::where('created_by', $user->id)->count(),
+        'uploaded' => Document::where('creator_id', $user->id)->count(),
         'signed' => Document::whereHas('signerAssignments', fn($sq) => 
             $sq->where('signer_id', $user->id)->where('status', 'signed')
         )->count(),

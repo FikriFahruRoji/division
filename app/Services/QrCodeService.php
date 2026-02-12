@@ -96,7 +96,7 @@ class QrCodeService
     /**
      * Add QR code and fingerprint text to a PDF page.
      */
-    protected function addQrToPage(Fpdi $pdf, string $qrPath, Document $document, array $pageSize): void
+    public function addQrToPage(Fpdi $pdf, string $qrPath, Document $document, array $pageSize): void
     {
         // Position QR at bottom-right corner
         $qrWidth = 25; // mm

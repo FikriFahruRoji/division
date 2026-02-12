@@ -29,6 +29,10 @@
             <span class="material-symbols-outlined text-xl {{ request()->routeIs('documents.create') ? 'text-text-main dark:text-white' : 'text-text-secondary group-hover:text-text-main dark:group-hover:text-white' }}">add_circle</span>
             Dokumen Baru
         </a>
+        <a href="{{ route('batches.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('batches.*') ? 'bg-primary/10 text-text-main dark:text-white font-semibold' : 'text-text-secondary hover:bg-gray-50 dark:hover:bg-zinc-800' }} transition-colors group">
+            <span class="material-symbols-outlined text-xl {{ request()->routeIs('batches.*') ? 'text-text-main dark:text-white' : 'text-text-secondary group-hover:text-text-main dark:group-hover:text-white' }}">inventory_2</span>
+            Batch Dokumen
+        </a>
         @endif
         
         @if(auth()->user()->isAdmin() || auth()->user()->isSigner())

@@ -33,6 +33,8 @@ class Document extends Model
         'qr_token',
         'sign_mode',
         'notes',
+        'batch_id',
+        'identifier',
     ];
 
     protected $casts = [
@@ -62,6 +64,14 @@ class Document extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creator_id')->withTrashed();
+    }
+
+    /**
+     * Get the batch this document belongs to.
+     */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(DocumentBatch::class, 'batch_id');
     }
 
     /**

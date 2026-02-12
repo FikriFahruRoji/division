@@ -31,7 +31,7 @@ class DashboardController extends Controller
         } else {
             // Signer sees only their documents
             $baseQuery->where(function ($q) use ($user) {
-                $q->where('created_by', $user->id)
+                $q->where('creator_id', $user->id)
                   ->orWhereHas('signerAssignments', fn($sq) => $sq->where('signer_id', $user->id));
             });
         }
@@ -79,7 +79,7 @@ class DashboardController extends Controller
         } else {
             // For signers - show documents related to them
             $documents = Document::where(function ($q) use ($user) {
-                $q->where('created_by', $user->id)
+                $q->where('creator_id', $user->id)
                   ->orWhereHas('signerAssignments', fn($sq) => $sq->where('signer_id', $user->id));
             })
             ->with(['creator', 'signerAssignments.signer'])

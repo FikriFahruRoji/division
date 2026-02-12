@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\BatchVerificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DocumentBatchController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SignatureController;
@@ -29,6 +31,14 @@ Route::middleware(['throttle:verification'])
 Route::middleware(['throttle:verification'])->group(function () {
     Route::get('/verify/{token}/preview', [VerificationController::class, 'preview'])->name('verify.preview');
     Route::get('/verify/{token}/download', [VerificationController::class, 'download'])->name('verify.download');
+});
+
+// Public batch verification (no auth required)
+Route::middleware(['throttle:verification'])->prefix('verify-batch')->group(function () {
+    Route::get('/{token}', [BatchVerificationController::class, 'show'])->name('verify.batch');
+    Route::get('/{token}/search', [BatchVerificationController::class, 'search'])->name('verify.batch.search');
+    Route::get('/{token}/{document}/preview', [BatchVerificationController::class, 'preview'])->name('verify.batch.preview');
+    Route::get('/{token}/{document}/download', [BatchVerificationController::class, 'download'])->name('verify.batch.download');
 });
 
 /*
@@ -68,6 +78,12 @@ Route::middleware(['auth', 'verified', 'throttle:web'])->group(function () {
             ->name('documents.store');
             
         Route::post('/documents/{document}/finalize', [DocumentController::class, 'finalize'])->name('documents.finalize');
+
+        // Batch management
+        Route::resource('batches', DocumentBatchController::class)->except(['edit', 'update']);
+        Route::get('batches/{batch}/qr', [DocumentBatchController::class, 'downloadQr'])->name('batches.qr');
+        Route::get('batches/{batch}/preview-first', [DocumentBatchController::class, 'previewFirstDocument'])->name('batches.previewFirst');
+        Route::post('batches/{batch}/apply-qr', [DocumentBatchController::class, 'applyQr'])->name('batches.applyQr');
     });
 
     /*
