@@ -249,39 +249,49 @@ class DocumentController extends Controller
     /**
      * Download PDF document.
      */
-    public function download(Document $document)
+    public function download(Document $document, ?string $filename = null)
     {
         $this->authorize('download', $document);
         
         $path = $document->signed_file_path ?? $document->file_path;
+        
+        if (!Storage::disk('local')->exists($path)) {
+            return back()->with('error', 'File tidak ditemukan.');
+        }
+
+        $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($document->doc_number ?? ''));
+        $expectedFilename = ($safeDocNumber ?: 'dokumen') . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
+        
         $fullPath = Storage::disk('local')->path($path);
         
-        if (!file_exists($fullPath)) {
-            return back()->with('error', 'File tidak ditemukan di path: ' . $fullPath);
-        }
-        
-        $safeDocNumber = str_replace(['/', '\\'], '_', $document->doc_number);
-        $filename = $safeDocNumber . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
-        
-        return response()->download($fullPath, $filename);
+        return response()->download($fullPath, $expectedFilename, [
+            'Content-Type' => 'application/pdf',
+            'Content-Length' => (string) filesize($fullPath),
+        ]);
     }
 
     /**
      * Preview PDF document.
      */
-    public function preview(Document $document)
+    public function preview(Document $document, ?string $filename = null)
     {
         $this->authorize('preview', $document);
         
         $path = $document->signed_file_path ?? $document->file_path;
-        $fullPath = Storage::disk('local')->path($path);
         
-        if (!file_exists($fullPath)) {
+        if (!Storage::disk('local')->exists($path)) {
             return back()->with('error', 'File tidak ditemukan.');
         }
+
+        $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($document->doc_number ?? ''));
+        $expectedFilename = ($safeDocNumber ?: 'dokumen') . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
+        
+        $fullPath = Storage::disk('local')->path($path);
         
         return response()->file($fullPath, [
             'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $expectedFilename . '"; filename*=UTF-8\'\'' . rawurlencode($expectedFilename),
+            'Content-Length' => (string) filesize($fullPath),
         ]);
     }
 }

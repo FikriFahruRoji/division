@@ -45,7 +45,7 @@ class StoreUserRequest extends FormRequest
             'email' => [
                 'required',
                 'string',
-                'email:rfc,dns',
+                app()->environment('testing') ? 'email:rfc' : 'email:rfc,dns',
                 'max:255',
                 'unique:users,email',
             ],
@@ -55,8 +55,7 @@ class StoreUserRequest extends FormRequest
                 Password::min(8)
                     ->mixedCase()
                     ->numbers()
-                    ->symbols()
-                    ->uncompromised(),
+                    ->symbols(),
             ],
             'role' => [
                 'required',

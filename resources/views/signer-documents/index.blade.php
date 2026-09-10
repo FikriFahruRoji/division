@@ -113,15 +113,19 @@
                                 TTD
                             </a>
                             @endif
+                            @php
+                                $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($document->doc_number ?? ''));
+                                $docPdfName = ($safeDocNumber ?: 'dokumen') . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
+                            @endphp
                             @if($document->status === 'signed_valid')
-                            <button type="button" onclick="confirmDownload('{{ route('documents.download', $document) }}', '{{ $document->doc_number }}')" class="text-text-secondary hover:text-primary transition-colors" title="Download">
+                            <button type="button" onclick="confirmDownload('{{ route('documents.download', ['document' => $document, 'filename' => $docPdfName]) }}', '{{ $docPdfName }}')" class="text-text-secondary hover:text-primary transition-colors" title="Download">
                                 <span class="material-symbols-outlined text-xl">download</span>
                             </button>
                             @endif
                             <a href="{{ route('documents.show', $document) }}" class="text-text-secondary hover:text-primary transition-colors" title="Lihat Detail">
                                 <span class="material-symbols-outlined text-xl">visibility</span>
                             </a>
-                            <a href="{{ route('documents.preview', $document) }}" target="_blank" class="text-text-secondary hover:text-primary transition-colors" title="Preview PDF">
+                            <a href="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" target="_blank" class="text-text-secondary hover:text-primary transition-colors" title="Preview PDF">
                                 <span class="material-symbols-outlined text-xl">open_in_new</span>
                             </a>
                         </div>
@@ -172,7 +176,11 @@
                     <a href="{{ route('documents.show', $document) }}" class="p-2 text-text-secondary hover:text-primary" title="Lihat Detail">
                         <span class="material-symbols-outlined text-xl">visibility</span>
                     </a>
-                    <a href="{{ route('documents.preview', $document) }}" target="_blank" class="p-2 text-text-secondary hover:text-primary" title="Preview PDF">
+                    @php
+                        $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($document->doc_number ?? ''));
+                        $docPdfName = ($safeDocNumber ?: 'dokumen') . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
+                    @endphp
+                    <a href="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" target="_blank" class="p-2 text-text-secondary hover:text-primary" title="Preview PDF">
                         <span class="material-symbols-outlined text-xl">open_in_new</span>
                     </a>
                 </div>
@@ -238,13 +246,14 @@
 </div>
 
 <script>
-    function confirmDownload(url, docNumber) {
+    function confirmDownload(url, filename) {
         const modal = document.getElementById('download-modal');
         const link = document.getElementById('download-confirm-btn');
         const msg = document.getElementById('download-doc-number');
         
         link.href = url;
-        msg.textContent = docNumber + '.pdf';
+        link.setAttribute('download', filename);
+        msg.textContent = filename;
         modal.classList.remove('hidden');
     }
 </script>

@@ -30,6 +30,14 @@ class SecurityHeadersMiddleware
      */
     protected function addSecurityHeaders(Response $response): void
     {
+        // For binary file downloads and streams, don't set restrictive CSP that breaks browser download managers and PDF plugins
+        if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse ||
+            $response instanceof \Symfony\Component\HttpFoundation\StreamedResponse) {
+            $response->headers->set('X-Content-Type-Options', 'nosniff');
+            $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
+            return;
+        }
+
         // HSTS - Strict Transport Security (1 year, include subdomains)
         // Only add in production to not break local development
         if (App::isProduction()) {
@@ -42,8 +50,8 @@ class SecurityHeadersMiddleware
         // Prevent MIME type sniffing
         $response->headers->set('X-Content-Type-Options', 'nosniff');
 
-        // Prevent clickjacking - deny iframe embedding
-        $response->headers->set('X-Frame-Options', 'DENY');
+        // Prevent clickjacking - allow same origin for previews
+        $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
 
         // XSS Protection (legacy, but still useful for older browsers)
         $response->headers->set('X-XSS-Protection', '1; mode=block');
@@ -59,21 +67,27 @@ class SecurityHeadersMiddleware
 
         // Content Security Policy - baseline policy
         // Note: 'unsafe-inline' still needed for TailwindCSS and inline scripts.
-        // TODO: Migrate to nonce-based CSP for production (Phase 3)
+        $viteHosts = !App::isProduction() ? ' http://127.0.0.1:5173 http://localhost:5173' : '';
+        $viteWs = !App::isProduction() ? ' ws://127.0.0.1:5173 ws://localhost:5173' : '';
+
         $cspDirectives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://hcaptcha.com https://*.hcaptcha.com https://cdnjs.cloudflare.com",
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://fonts.bunny.net",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://hcaptcha.com https://*.hcaptcha.com https://cdnjs.cloudflare.com" . $viteHosts,
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://fonts.bunny.net" . $viteHosts,
             "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com https://fonts.bunny.net",
             "img-src 'self' data: blob: https://api.qrserver.com",
-            "connect-src 'self' https://hcaptcha.com https://*.hcaptcha.com https://accounts.google.com",
+            "connect-src 'self' https://hcaptcha.com https://*.hcaptcha.com https://accounts.google.com" . $viteHosts . $viteWs,
             "frame-src 'self' https://hcaptcha.com https://*.hcaptcha.com",
             "frame-ancestors 'self'",
             "form-action 'self' https://accounts.google.com",
             "base-uri 'self'",
-            "object-src 'none'",
-            "upgrade-insecure-requests",
+            "object-src 'self'",
         ];
+
+        // Only upgrade to HTTPS in production environment
+        if (App::isProduction()) {
+            $cspDirectives[] = "upgrade-insecure-requests";
+        }
 
         $response->headers->set(
             'Content-Security-Policy',

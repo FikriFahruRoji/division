@@ -38,7 +38,11 @@
                         </div>
                         <p id="file-name" class="mt-2 text-sm text-primary font-medium"></p>
                         @if($document->file_path)
-                            <p class="mt-2 text-xs text-text-secondary">File saat ini: <a href="{{ route('documents.preview', $document) }}" target="_blank" class="text-primary hover:underline">Lihat Dokumen</a></p>
+                            @php
+                                $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($document->doc_number ?? ''));
+                                $docPdfName = ($safeDocNumber ?: 'dokumen') . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
+                            @endphp
+                            <p class="mt-2 text-xs text-text-secondary">File saat ini: <a href="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" target="_blank" class="text-primary hover:underline">Lihat Dokumen</a></p>
                         @endif
                         @error('file')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
                     </div>

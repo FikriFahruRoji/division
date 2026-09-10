@@ -66,12 +66,16 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right">
                         <div class="flex items-center justify-end gap-2">
+                            @php
+                                $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($document->doc_number ?? ''));
+                                $docPdfName = ($safeDocNumber ?: 'dokumen') . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
+                            @endphp
                             @if($document->status === 'signed_valid')
-                            <a href="{{ route('documents.download', $document) }}" class="text-text-secondary hover:text-primary transition-colors" title="Download">
+                            <a href="{{ route('documents.download', ['document' => $document, 'filename' => $docPdfName]) }}" download="{{ $docPdfName }}" class="text-text-secondary hover:text-primary transition-colors" title="Download">
                                 <span class="material-symbols-outlined text-xl">download</span>
                             </a>
                             @endif
-                            <a href="{{ route('documents.preview', $document) }}" target="_blank" class="text-text-secondary hover:text-primary transition-colors" title="Lihat">
+                            <a href="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" target="_blank" class="text-text-secondary hover:text-primary transition-colors" title="Lihat">
                                 <span class="material-symbols-outlined text-xl">open_in_new</span>
                             </a>
                         </div>
@@ -87,6 +91,8 @@
         @foreach($documents as $document)
         @php
             $myAssignment = $document->signerAssignments->where('signer_id', auth()->id())->first();
+            $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($document->doc_number ?? ''));
+            $docPdfName = ($safeDocNumber ?: 'dokumen') . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
         @endphp
         <div class="p-4">
             <div class="flex items-start gap-3 mb-3">
@@ -110,11 +116,11 @@
                 </div>
                 <div class="flex items-center gap-2">
                     @if($document->status === 'signed_valid')
-                    <a href="{{ route('documents.download', $document) }}" class="p-2 text-text-secondary hover:text-primary">
+                    <a href="{{ route('documents.download', ['document' => $document, 'filename' => $docPdfName]) }}" download="{{ $docPdfName }}" class="p-2 text-text-secondary hover:text-primary">
                         <span class="material-symbols-outlined text-xl">download</span>
                     </a>
                     @endif
-                    <a href="{{ route('documents.preview', $document) }}" target="_blank" class="p-2 text-text-secondary hover:text-primary">
+                    <a href="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" target="_blank" class="p-2 text-text-secondary hover:text-primary">
                         <span class="material-symbols-outlined text-xl">open_in_new</span>
                     </a>
                 </div>

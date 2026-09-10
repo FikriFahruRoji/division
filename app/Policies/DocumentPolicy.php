@@ -163,7 +163,15 @@ class DocumentPolicy
         }
 
         // Creator can revoke their own documents
-        return $document->creator_id === $user->id;
+        if ($document->creator_id === $user->id) {
+            return true;
+        }
+
+        // Signers who have signed can also revoke
+        return $document->signerAssignments()
+            ->where('signer_id', $user->id)
+            ->where('status', 'signed')
+            ->exists();
     }
 
     /**

@@ -5,7 +5,16 @@
 @section('content')
 <!-- Page Header -->
 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-    <h1 class="text-text-main dark:text-white text-2xl font-bold">Dokumen Menunggu Tanda Tangan</h1>
+    <div>
+        <h1 class="text-text-main dark:text-white text-2xl font-bold">Dokumen Menunggu Tanda Tangan</h1>
+        <p class="text-sm text-text-secondary mt-1">Daftar dokumen yang memerlukan tanda tangan Anda</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <a href="{{ route('signatures.history') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-700 border border-border-color dark:border-zinc-600 rounded-lg text-sm font-medium text-text-main dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-600 transition-colors">
+            <span class="material-symbols-outlined text-lg">history</span>
+            Riwayat Tanda Tangan
+        </a>
+    </div>
 </div>
 
 <!-- Documents Table -->

@@ -3,6 +3,10 @@
 @section('title', 'Detail Dokumen')
 
 @section('content')
+@php
+    $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($document->doc_number ?? ''));
+    $docPdfName = ($safeDocNumber ?: 'dokumen') . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
+@endphp
 <!-- Page Header -->
 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
     <div class="flex items-center gap-4">
@@ -20,7 +24,7 @@
             <p class="text-sm text-text-secondary">{{ $document->doc_number }}</p>
         </div>
     </div>
-    <div class="flex gap-2">
+    <div class="flex items-center gap-2">
         @php
             $isRejected = $document->status === 'rejected';
             $lastRejection = $document->signerAssignments->where('status', 'rejected')->sortByDesc('updated_at')->first();
@@ -53,7 +57,7 @@
         @php
             $hasSigned = $document->signerAssignments->where('signer_id', auth()->id())->where('status', 'signed')->isNotEmpty();
         @endphp
-        @if($document->isSignedValid() && (auth()->user()->isAdmin() || auth()->user()->isOperator() || $document->created_by === auth()->id() || $hasSigned))
+        @if($document->isSignedValid() && (auth()->user()->isAdmin() || auth()->user()->isOperator() || $document->creator_id === auth()->id() || $hasSigned))
         <button onclick="document.getElementById('revoke-modal').classList.remove('hidden')" class="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 rounded-lg text-white text-sm font-semibold transition-colors">
             <span class="material-symbols-outlined text-lg">cancel</span>
             Cabut
@@ -61,7 +65,7 @@
         @endif
         @php
             $isSafeToDelete = $document->status === 'draft' || $document->status === 'pending_signature' || $document->status === 'rejected';
-            $canDelete = (auth()->user()->isAdmin() || auth()->user()->isOperator() || $document->created_by === auth()->id()) && $isSafeToDelete;
+            $canDelete = (auth()->user()->isAdmin() || auth()->user()->isOperator() || $document->creator_id === auth()->id()) && $isSafeToDelete;
         @endphp
         @if($canDelete)
         <button type="button" onclick="document.getElementById('delete-modal').classList.remove('hidden')" class="flex items-center gap-2 px-4 py-2.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm font-semibold transition-colors">
@@ -69,7 +73,11 @@
             Hapus
         </button>
         @endif
-        <button type="button" onclick="document.getElementById('download-modal').classList.remove('hidden')" class="flex items-center gap-2 px-4 py-2.5 bg-text-main hover:bg-gray-800 rounded-lg text-white text-sm font-semibold transition-colors">
+        <a href="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" target="_blank" class="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-700 border border-border-color dark:border-zinc-600 rounded-lg text-sm font-medium text-text-main dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-600 transition-colors" title="Buka PDF di Tab Baru">
+            <span class="material-symbols-outlined text-lg">open_in_new</span>
+            Buka PDF
+        </a>
+        <button type="button" onclick="document.getElementById('download-modal').classList.remove('hidden')" class="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-hover rounded-lg text-text-main text-sm font-semibold transition-colors">
             <span class="material-symbols-outlined text-lg">download</span>
             Download
         </button>
@@ -141,9 +149,21 @@
         <!-- PDF Preview -->
         <div class="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-border-color dark:border-zinc-700 overflow-hidden">
             <div class="p-6">
-                <h4 class="font-bold text-text-main dark:text-white mb-4">Preview Dokumen</h4>
-                <div class="aspect-[3/4] bg-background-light dark:bg-zinc-700 rounded-lg overflow-hidden">
-                    <iframe src="{{ route('documents.preview', $document) }}" class="w-full h-full" frameborder="0"></iframe>
+                <div class="flex justify-between items-center mb-4">
+                    <h4 class="font-bold text-text-main dark:text-white">Preview Dokumen</h4>
+                    <div class="flex items-center gap-2">
+                        <a href="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-600 rounded-lg text-xs font-medium text-text-main dark:text-white transition-colors" title="Buka di Tab Baru">
+                            <span class="material-symbols-outlined text-sm">open_in_new</span>
+                            Buka di Tab Baru
+                        </a>
+                        <a href="{{ route('documents.download', ['document' => $document, 'filename' => $docPdfName]) }}" download="{{ $docPdfName }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover rounded-lg text-xs font-semibold text-text-main transition-colors" title="Download File PDF">
+                            <span class="material-symbols-outlined text-sm">download</span>
+                            Download PDF
+                        </a>
+                    </div>
+                </div>
+                <div class="aspect-[3/4] bg-background-light dark:bg-zinc-700 rounded-lg overflow-hidden border border-border-color dark:border-zinc-600">
+                    <iframe src="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" class="w-full h-full" frameborder="0"></iframe>
                 </div>
             </div>
         </div>
@@ -344,7 +364,7 @@
             <p class="text-sm text-text-secondary mb-3">Apakah Anda ingin mengunduh dokumen ini?</p>
             <div class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p class="text-sm text-blue-800 dark:text-blue-200 break-all">
-                    <strong>{{ $document->doc_number }}.pdf</strong>
+                    <strong>{{ $docPdfName }}</strong>
                 </p>
             </div>
         </div>
@@ -352,7 +372,16 @@
             <button type="button" onclick="document.getElementById('download-modal').classList.add('hidden')" class="px-4 py-2.5 bg-white dark:bg-zinc-700 border border-border-color dark:border-zinc-600 rounded-lg text-sm font-medium text-text-main dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-600">
                 Batal
             </button>
-            <a href="{{ route('documents.download', $document) }}" onclick="document.getElementById('download-modal').classList.add('hidden')" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm font-semibold transition-colors">
+            <a href="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" 
+               target="_blank"
+               onclick="document.getElementById('download-modal').classList.add('hidden')" 
+               class="px-4 py-2.5 bg-gray-100 dark:bg-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-600 rounded-lg text-text-main dark:text-white text-sm font-medium transition-colors">
+                Buka Tab Baru
+            </a>
+            <a href="{{ route('documents.download', ['document' => $document, 'filename' => $docPdfName]) }}" 
+               download="{{ $docPdfName }}"
+               onclick="document.getElementById('download-modal').classList.add('hidden')" 
+               class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm font-semibold transition-colors">
                 Ya, Download
             </a>
         </div>

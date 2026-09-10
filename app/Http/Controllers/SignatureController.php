@@ -82,13 +82,16 @@ class SignatureController extends Controller
         try {
             $this->signingService->signDocument($document, $user, $qrPosition);
             
-            $message = $document->fresh()->isSignedValid()
-                ? 'Dokumen berhasil ditandatangani dan sudah lengkap.'
-                : 'Dokumen berhasil ditandatangani. Menunggu penandatangan lainnya.';
+            $freshDoc = $document->fresh();
+            if ($freshDoc->isSignedValid()) {
+                return redirect()
+                    ->route('documents.show', $freshDoc)
+                    ->with('success', 'Dokumen berhasil ditandatangani dan siap diunduh.');
+            }
                 
             return redirect()
                 ->route('signatures.pending')
-                ->with('success', $message);
+                ->with('success', 'Dokumen berhasil ditandatangani. Menunggu penandatangan lainnya.');
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }

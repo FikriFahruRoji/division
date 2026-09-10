@@ -29,10 +29,6 @@
             <span class="material-symbols-outlined text-xl {{ request()->routeIs('documents.create') ? 'text-text-main dark:text-white' : 'text-text-secondary group-hover:text-text-main dark:group-hover:text-white' }}">add_circle</span>
             Dokumen Baru
         </a>
-        <a href="{{ route('batches.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('batches.*') ? 'bg-primary/10 text-text-main dark:text-white font-semibold' : 'text-text-secondary hover:bg-gray-50 dark:hover:bg-zinc-800' }} transition-colors group">
-            <span class="material-symbols-outlined text-xl {{ request()->routeIs('batches.*') ? 'text-text-main dark:text-white' : 'text-text-secondary group-hover:text-text-main dark:group-hover:text-white' }}">inventory_2</span>
-            Batch Dokumen
-        </a>
         @endif
         
         @if(auth()->user()->isAdmin() || auth()->user()->isSigner())
@@ -46,9 +42,13 @@
         @endif
         
         @if(auth()->user()->isSigner())
-        <a href="{{ route('signer-documents.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('signer-documents.*') ? 'bg-primary/10 text-text-main dark:text-white font-semibold' : 'text-text-secondary hover:bg-gray-50 dark:hover:bg-zinc-800' }} transition-colors group">
-            <span class="material-symbols-outlined text-xl {{ request()->routeIs('signer-documents.*') ? 'text-text-main dark:text-white' : 'text-text-secondary group-hover:text-text-main dark:group-hover:text-white' }}">folder</span>
+        <a href="{{ route('signer-documents.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('signer-documents.index') ? 'bg-primary/10 text-text-main dark:text-white font-semibold' : 'text-text-secondary hover:bg-gray-50 dark:hover:bg-zinc-800' }} transition-colors group">
+            <span class="material-symbols-outlined text-xl {{ request()->routeIs('signer-documents.index') ? 'text-text-main dark:text-white' : 'text-text-secondary group-hover:text-text-main dark:group-hover:text-white' }}">folder</span>
             Dokumen Saya
+        </a>
+        <a href="{{ route('signer-documents.create') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('signer-documents.create') ? 'bg-primary/10 text-text-main dark:text-white font-semibold' : 'text-text-secondary hover:bg-gray-50 dark:hover:bg-zinc-800' }} transition-colors group">
+            <span class="material-symbols-outlined text-xl {{ request()->routeIs('signer-documents.create') ? 'text-text-main dark:text-white' : 'text-text-secondary group-hover:text-text-main dark:group-hover:text-white' }}">upload_file</span>
+            Unggah Dokumen
         </a>
         <a href="{{ route('signatures.history') }}" class="flex items-center gap-3 px-4 py-3 rounded-lg {{ request()->routeIs('signatures.history') ? 'bg-primary/10 text-text-main dark:text-white font-semibold' : 'text-text-secondary hover:bg-gray-50 dark:hover:bg-zinc-800' }} transition-colors group">
             <span class="material-symbols-outlined text-xl {{ request()->routeIs('signatures.history') ? 'text-text-main dark:text-white' : 'text-text-secondary group-hover:text-text-main dark:group-hover:text-white' }}">history</span>

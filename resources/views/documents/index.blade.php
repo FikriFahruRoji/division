@@ -131,11 +131,15 @@
                                 <span class="material-symbols-outlined text-[20px]">edit</span>
                             </a>
                             @endif
-                            <a href="{{ route('documents.preview', $document) }}" target="_blank" class="text-text-secondary hover:text-primary transition-colors" title="Preview">
+                            @php
+                                $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($document->doc_number ?? ''));
+                                $docPdfName = ($safeDocNumber ?: 'dokumen') . '_' . ($document->signed_file_path ? 'signed' : 'original') . '.pdf';
+                            @endphp
+                            <a href="{{ route('documents.preview', ['document' => $document, 'filename' => $docPdfName]) }}" target="_blank" class="text-text-secondary hover:text-primary transition-colors" title="Preview">
                                 <span class="material-symbols-outlined text-[20px]">open_in_new</span>
                             </a>
                             @if($document->status === 'signed_valid')
-                            <button type="button" onclick="confirmDownload('{{ route('documents.download', $document) }}', '{{ $document->doc_number }}')" class="text-text-secondary hover:text-primary transition-colors" title="Download">
+                            <button type="button" onclick="confirmDownload('{{ route('documents.download', ['document' => $document, 'filename' => $docPdfName]) }}', '{{ $docPdfName }}')" class="text-text-secondary hover:text-primary transition-colors" title="Download">
                                 <span class="material-symbols-outlined text-[20px]">download</span>
                             </button>
                             @endif
@@ -196,13 +200,14 @@
 </div>
 
 <script>
-    function confirmDownload(url, docNumber) {
+    function confirmDownload(url, filename) {
         const modal = document.getElementById('download-modal');
         const link = document.getElementById('download-confirm-btn');
         const msg = document.getElementById('download-doc-number');
         
         link.href = url;
-        msg.textContent = docNumber + '.pdf';
+        link.setAttribute('download', filename);
+        msg.textContent = filename;
         modal.classList.remove('hidden');
     }
 </script>
