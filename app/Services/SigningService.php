@@ -132,6 +132,14 @@ class SigningService
             throw new \Exception('Anda tidak memiliki izin untuk menandatangani dokumen ini.');
         }
         
+        // For sequential mode, enforce signing order
+        if ($document->sign_mode === 'sequential') {
+            $nextSigner = $document->getNextSigner();
+            if (!$nextSigner || $nextSigner->signer_id !== $signer->id) {
+                throw new \Exception('Belum giliran Anda untuk menandatangani dokumen ini. Harap tunggu penandatangan sebelumnya.');
+            }
+        }
+        
         // Get the source PDF (signed version if exists, otherwise original with QR)
         $sourcePath = $document->signed_file_path 
             ? Storage::disk('local')->path($document->signed_file_path)
