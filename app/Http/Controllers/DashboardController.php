@@ -101,6 +101,6 @@ class DashboardController extends Controller
             ->get();
         }
         
-        return view('dashboard-new', compact('stats', 'userStats', 'documents', 'pendingSignatures'));
+        return view('dashboard', compact('stats', 'userStats', 'documents', 'pendingSignatures'));
     }
 }
