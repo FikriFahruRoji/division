@@ -68,28 +68,8 @@ class DocumentController extends Controller
      */
     public function create()
     {
-        $user = auth()->user();
-        
-        // Fetch all departments for the dropdown
-        $departments = Department::where('status', 'active')->orderBy('name')->get();
-        
-        $signersQuery = User::where('role', 'signer')
-            ->where('status', 'active')
-            ->with('department'); // Eager load department
-            
-        // Fix: Only show signers from same department
-        if (!$user->isSuperAdmin() && $user->department_id) {
-            $signersQuery->where('department_id', $user->department_id);
-            // Also limit departments dropdown if needed, or just let them see all but filter signers?
-            // User requirement was specific about the dropdown concept. 
-            // If user is specific dept admin, maybe pre-select or limit?
-            // For now, let's keep the backend restriction on signersQuery strict.
-            // AND filter departments list to only their department to avoid confusion.
-             $departments = $departments->where('id', $user->department_id);
-        }
-            
-        $signers = $signersQuery->orderBy('name')->get();
-            
+        [$signers, $departments] = $this->getFormData();
+
         return view('documents.create', compact('signers', 'departments'));
     }
 
@@ -129,26 +109,15 @@ class DocumentController extends Controller
         
         return view('documents.show', compact('document'));
     }
+    /**
+     * Show the form for editing the specified document.
+     */
     public function edit(Document $document)
     {
         $this->authorize('update', $document);
-        
-        // Fetch all departments for the dropdown
-        $departments = Department::where('status', 'active')->orderBy('name')->get();
-        
-        $signersQuery = User::where('role', 'signer')
-            ->where('status', 'active')
-            ->with('department');
-            
-        // Fix: Only show signers from same department
-        $user = auth()->user();
-        if (!$user->isSuperAdmin() && $user->department_id) {
-            $signersQuery->where('department_id', $user->department_id);
-            $departments = $departments->where('id', $user->department_id);
-        }
-            
-        $signers = $signersQuery->orderBy('name')->get();
-            
+
+        [$signers, $departments] = $this->getFormData();
+
         return view('documents.edit', compact('document', 'signers', 'departments'));
     }
 
@@ -293,5 +262,30 @@ class DocumentController extends Controller
             'Content-Disposition' => 'inline; filename="' . $expectedFilename . '"; filename*=UTF-8\'\'' . rawurlencode($expectedFilename),
             'Content-Length' => (string) filesize($fullPath),
         ]);
+    }
+
+    /**
+     * Build the signers and departments collections for document create/edit forms.
+     * Scopes to the authenticated user's department for non-super-admin users.
+     *
+     * @return array{0: \Illuminate\Database\Eloquent\Collection, 1: \Illuminate\Database\Eloquent\Collection}
+     */
+    private function getFormData(): array
+    {
+        $user = auth()->user();
+
+        $departments = Department::where('status', 'active')->orderBy('name')->get();
+
+        $signersQuery = User::where('role', 'signer')
+            ->where('status', 'active')
+            ->with('department');
+
+        // Limit dropdown options to the user's own department for non-super-admin
+        if (!$user->isSuperAdmin() && $user->department_id) {
+            $signersQuery->where('department_id', $user->department_id);
+            $departments = $departments->where('id', $user->department_id);
+        }
+
+        return [$signersQuery->orderBy('name')->get(), $departments];
     }
 }

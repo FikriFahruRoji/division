@@ -257,7 +257,7 @@ class SigningService
                     $qrX = max($margin + $qrWidth/2, min($qrX, $size['width'] - $qrWidth/2 - $margin));
                     $qrY = max($margin + $qrWidth/2, min($qrY, $size['height'] - $qrWidth/2 - $margin));
                     
-                    $this->qrCodeService->addQrAtPosition($pdf, $qrTempPath, $document, $qrX, $qrY, $qrWidth);
+                    $this->qrCodeService->addQrAtPosition($pdf, $qrTempPath, $qrX, $qrY, $qrWidth);
                     
                     // Add visible signature box ONLY if explicit visual signature is requested (handled by visual signature method)
                     // Or we could attach a visual annotation for the digital signature here
@@ -272,7 +272,7 @@ class SigningService
                     $qrWidth = isset($qrPosition['width']) ? $qrPosition['width'] : 20;
                     $qrX = $size['width'] - ($qrWidth + 5);
                     $qrY = $size['height'] - ($qrWidth + 15);
-                    $this->qrCodeService->addQrAtPosition($pdf, $qrTempPath, $document, $qrX, $qrY, $qrWidth);
+                    $this->qrCodeService->addQrAtPosition($pdf, $qrTempPath, $qrX, $qrY, $qrWidth);
                 }
             }
         }

@@ -75,19 +75,6 @@ class DepartmentController extends Controller
             ->with('success', 'Departemen berhasil ditambahkan.');
     }
 
-    /**
-     * Display the specified department.
-     */
-    public function show(Department $department)
-    {
-        if (!auth()->user()->isSuperAdmin()) {
-            abort(403);
-        }
-
-        $department->load(['users', 'admins']);
-
-        return view('departments.show', compact('department'));
-    }
 
     /**
      * Show the form for editing the specified department.
