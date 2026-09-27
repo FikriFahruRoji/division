@@ -6,15 +6,19 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'DigitalSign') }} - @yield('title', 'Dashboard')</title>
     
+    <!-- Performance Preconnects -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     
     <!-- Material Icons (using regular icons as fallback) -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons&display=block" rel="stylesheet">
     
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
@@ -117,10 +121,13 @@
                 @endif
                 
                 <!-- Notification Bell -->
+                @php
+                    $unreadNotificationCount = auth()->user()->unreadNotifications()->count();
+                @endphp
                 <div class="relative" x-data="{ notificationOpen: false }">
                     <button @click="notificationOpen = !notificationOpen" class="relative p-2 text-text-secondary hover:text-primary hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
                         <span class="material-symbols-outlined">notifications</span>
-                        @if(auth()->user()->unreadNotifications->count() > 0)
+                        @if($unreadNotificationCount > 0)
                             <span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border border-white dark:border-zinc-900"></span>
                         @endif
                     </button>
@@ -137,7 +144,7 @@
                         
                         <div class="flex items-center justify-between px-4 py-3 border-b border-border-color dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/50">
                             <h3 class="text-sm font-semibold text-text-main dark:text-white">Notifikasi</h3>
-                            @if(auth()->user()->unreadNotifications->count() > 0)
+                            @if($unreadNotificationCount > 0)
                                 <form action="{{ route('notifications.readAll') }}" method="POST">
                                     @csrf
                                     <button type="submit" class="text-xs text-primary hover:text-primary-hover font-medium">Tandai semua dibaca</button>

@@ -36,32 +36,44 @@ class DashboardController extends Controller
             });
         }
         
-        // Document stats for dashboard cards
+        // Document stats for dashboard cards (1 single GROUP BY query instead of 5 count queries)
+        $statusCounts = (clone $baseQuery)
+            ->selectRaw('status, count(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
         $stats = [
-            'total' => (clone $baseQuery)->count(),
-            'pending' => (clone $baseQuery)->where('status', 'pending_signature')->count(),
-            'signed' => (clone $baseQuery)->where('status', 'signed_valid')->count(),
-            'revoked' => (clone $baseQuery)->where('status', 'revoked')->count(),
-            'draft' => (clone $baseQuery)->where('status', 'draft')->count(),
+            'total' => (int) $statusCounts->sum(),
+            'pending' => (int) $statusCounts->get('pending_signature', 0),
+            'signed' => (int) $statusCounts->get('signed_valid', 0),
+            'revoked' => (int) $statusCounts->get('revoked', 0),
+            'draft' => (int) $statusCounts->get('draft', 0),
         ];
         
-        // User stats - different for super admin vs admin
+        // User stats - different for super admin vs admin (1 single GROUP BY query instead of 4-5 queries)
         $userStats = [];
         
         if ($user->isSuperAdmin()) {
-            // Super admin sees all user counts
+            $roleCounts = User::selectRaw('role, count(*) as count')
+                ->groupBy('role')
+                ->pluck('count', 'role');
+
             $userStats = [
                 'departments' => Department::count(),
-                'total_users' => User::count(),
-                'admins' => User::where('role', 'admin')->count(),
-                'operators' => User::where('role', 'operator')->count(),
-                'signers' => User::where('role', 'signer')->count(),
+                'total_users' => (int) $roleCounts->sum(),
+                'admins' => (int) $roleCounts->get('admin', 0),
+                'operators' => (int) $roleCounts->get('operator', 0),
+                'signers' => (int) $roleCounts->get('signer', 0),
             ];
         } elseif ($user->role === 'admin' && $user->department_id) {
-            // Admin sees only users in their department
+            $roleCounts = User::where('department_id', $user->department_id)
+                ->selectRaw('role, count(*) as count')
+                ->groupBy('role')
+                ->pluck('count', 'role');
+
             $userStats = [
-                'operators' => User::where('department_id', $user->department_id)->where('role', 'operator')->count(),
-                'signers' => User::where('department_id', $user->department_id)->where('role', 'signer')->count(),
+                'operators' => (int) $roleCounts->get('operator', 0),
+                'signers' => (int) $roleCounts->get('signer', 0),
             ];
         }
         
