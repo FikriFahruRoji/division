@@ -23,6 +23,13 @@ class DocumentService
      */
     private const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+    protected PdfCompatibilityService $pdfCompatibilityService;
+
+    public function __construct(PdfCompatibilityService $pdfCompatibilityService)
+    {
+        $this->pdfCompatibilityService = $pdfCompatibilityService;
+    }
+
     /**
      * Upload and create a new document.
      */
@@ -37,8 +44,12 @@ class DocumentService
         // Store in secure location (not publicly accessible)
         $path = $file->storeAs('documents/secure', $randomFilename, 'local');
         
-        // Calculate hash and fingerprint
         $fullPath = Storage::disk('local')->path($path);
+
+        // Ensure PDF is compatible with FPDI (normalizes compressed streams if needed)
+        $this->pdfCompatibilityService->ensureCompatible($fullPath);
+        
+        // Calculate hash and fingerprint
         $hash = $this->calculateHash($fullPath);
         $fingerprint = $this->generateFingerprint($hash);
         
@@ -136,6 +147,10 @@ class DocumentService
         // Store the new file
         $path = $file->store('documents', 'local');
         $fullPath = Storage::disk('local')->path($path);
+
+        // Ensure PDF is compatible with FPDI
+        $this->pdfCompatibilityService->ensureCompatible($fullPath);
+
         $hash = $this->calculateHash($fullPath);
         $fingerprint = $this->generateFingerprint($hash);
         
@@ -249,6 +264,10 @@ class DocumentService
         
         // Calculate hash
         $fullPath = Storage::disk('local')->path($path);
+
+        // Ensure PDF is compatible with FPDI
+        $this->pdfCompatibilityService->ensureCompatible($fullPath);
+
         $hash = $this->calculateHash($fullPath);
         $fingerprint = $this->generateFingerprint($hash);
         

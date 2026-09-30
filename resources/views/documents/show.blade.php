@@ -121,10 +121,6 @@
                         <dd class="text-text-main dark:text-white font-medium">{{ $document->unit }}</dd>
                     </div>
                     <div class="bg-background-light dark:bg-zinc-700 rounded-lg p-4">
-                        <dt class="font-medium text-text-secondary text-xs uppercase tracking-wider mb-1">Klasifikasi</dt>
-                        <dd class="text-text-main dark:text-white font-medium capitalize">{{ $document->classification }}</dd>
-                    </div>
-                    <div class="bg-background-light dark:bg-zinc-700 rounded-lg p-4">
                         <dt class="font-medium text-text-secondary text-xs uppercase tracking-wider mb-1">Mode TTD</dt>
                         <dd class="text-text-main dark:text-white font-medium capitalize">{{ $document->sign_mode }}</dd>
                     </div>

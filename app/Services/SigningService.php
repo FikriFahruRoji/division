@@ -15,11 +15,17 @@ class SigningService
 {
     protected QrCodeService $qrCodeService;
     protected CertificateService $certificateService;
+    protected PdfCompatibilityService $pdfCompatibilityService;
     
-    public function __construct(QrCodeService $qrCodeService, CertificateService $certificateService)
+    public function __construct(
+        QrCodeService $qrCodeService, 
+        CertificateService $certificateService,
+        PdfCompatibilityService $pdfCompatibilityService
+    )
     {
         $this->qrCodeService = $qrCodeService;
         $this->certificateService = $certificateService;
+        $this->pdfCompatibilityService = $pdfCompatibilityService;
     }
     
     /**
@@ -201,6 +207,9 @@ class SigningService
      */
     protected function applyVisualSignature(Document $document, User $signer, string $sourcePath, array $qrPosition = []): string
     {
+        // Ensure source PDF is compatible with FPDI free parser (normalizes if compressed streams exist)
+        $sourcePath = $this->pdfCompatibilityService->ensureCompatible($sourcePath);
+
         // Get or generate user certificate
         $certPaths = $this->certificateService->getUserCertificate($signer);
         

@@ -89,27 +89,7 @@
                     @error('unit')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
                 </div>
 
-                <!-- Classification -->
-                <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium text-text-main dark:text-white mb-3">Klasifikasi</label>
-                    <div class="flex flex-wrap gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="classification" value="biasa" {{ old('classification', 'biasa') == 'biasa' ? 'checked' : '' }}
-                                class="w-4 h-4 text-primary border-gray-300 focus:ring-primary">
-                            <span class="text-sm text-text-main dark:text-white">Biasa</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="classification" value="rahasia" {{ old('classification') == 'rahasia' ? 'checked' : '' }}
-                                class="w-4 h-4 text-primary border-gray-300 focus:ring-primary">
-                            <span class="text-sm text-text-main dark:text-white">Rahasia</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="classification" value="sangat_rahasia" {{ old('classification') == 'sangat_rahasia' ? 'checked' : '' }}
-                                class="w-4 h-4 text-primary border-gray-300 focus:ring-primary">
-                            <span class="text-sm text-text-main dark:text-white">Sangat Rahasia</span>
-                        </label>
-                    </div>
-                </div>
+
 
                 <!-- Notes -->
                 <div class="sm:col-span-2">

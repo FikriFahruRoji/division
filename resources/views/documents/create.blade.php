@@ -98,31 +98,18 @@
                         </div>
                     </div>
                     
-                    <!-- Classification & Sign Mode -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label for="classification" class="block text-sm font-medium text-text-main dark:text-white mb-2">
-                                Klasifikasi
-                            </label>
-                            <select name="classification" id="classification"
-                                class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
-                                <option value="biasa" {{ old('classification') == 'biasa' ? 'selected' : '' }}>Biasa</option>
-                                <option value="terbatas" {{ old('classification') == 'terbatas' ? 'selected' : '' }}>Terbatas</option>
-                                <option value="rahasia" {{ old('classification') == 'rahasia' ? 'selected' : '' }}>Rahasia</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="sign_mode" class="block text-sm font-medium text-text-main dark:text-white mb-2">
-                                Mode Tanda Tangan <span class="text-red-500">*</span>
-                            </label>
-                            <select name="sign_mode" id="sign_mode" required
-                                class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
-                                <option value="single" {{ old('sign_mode') == 'single' ? 'selected' : '' }}>Single (1 penandatangan)</option>
-                                <option value="sequential" {{ old('sign_mode') == 'sequential' ? 'selected' : '' }}>Sequential (berurutan)</option>
-                                <option value="parallel" {{ old('sign_mode') == 'parallel' ? 'selected' : '' }}>Parallel (bersamaan)</option>
-                            </select>
-                            <p class="mt-1 text-xs text-text-secondary">Sequential: tanda tangan berurutan. Parallel: semua bisa tanda tangan bersamaan.</p>
-                        </div>
+                    <!-- Sign Mode -->
+                    <div>
+                        <label for="sign_mode" class="block text-sm font-medium text-text-main dark:text-white mb-2">
+                            Mode Tanda Tangan <span class="text-red-500">*</span>
+                        </label>
+                        <select name="sign_mode" id="sign_mode" required
+                            class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="single" {{ old('sign_mode') == 'single' ? 'selected' : '' }}>Single (1 penandatangan)</option>
+                            <option value="sequential" {{ old('sign_mode') == 'sequential' ? 'selected' : '' }}>Sequential (berurutan)</option>
+                            <option value="parallel" {{ old('sign_mode') == 'parallel' ? 'selected' : '' }}>Parallel (bersamaan)</option>
+                        </select>
+                        <p class="mt-1 text-xs text-text-secondary">Sequential: tanda tangan berurutan. Parallel: semua bisa tanda tangan bersamaan.</p>
                     </div>
                     
                     <!-- Signers -->

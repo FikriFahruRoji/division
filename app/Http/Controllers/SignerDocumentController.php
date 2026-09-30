@@ -35,7 +35,6 @@ class SignerDocumentController extends Controller
             'doc_date' => 'required|date',
             'doc_type' => 'required|string|max:100',
             'unit' => 'required|string|max:100',
-            'classification' => 'required|in:biasa,rahasia,sangat_rahasia',
             'notes' => 'nullable|string|max:1000',
         ]);
 
