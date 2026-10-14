@@ -15,7 +15,10 @@ class DocumentPolicy
      */
     public function viewAny(User $user): bool
     {
-        // Admin and operator can view all, signers see filtered list
+        if (!$user->isActive()) {
+            return false;
+        }
+
         return true;
     }
 
@@ -24,14 +27,19 @@ class DocumentPolicy
      */
     public function view(User $user, Document $document): bool
     {
+        if (!$user->isActive()) {
+            return false;
+        }
+
         // Super admin can view all
         if ($user->isSuperAdmin()) {
             return true;
         }
 
-        // Admin can view documents from their department
+        // Admin can view documents from their department (using document department_id)
         if ($user->isAdmin()) {
-            return $user->department_id === $document->creator?->department_id;
+            $docDepartmentId = $document->department_id ?? $document->creator?->department_id;
+            return $user->department_id !== null && $user->department_id === $docDepartmentId;
         }
 
         // Creator can view their documents
@@ -41,7 +49,7 @@ class DocumentPolicy
 
         // Assigned signers can view
         return $document->signerAssignments()
-            ->where('signer_id', $user->id)
+            ->where("signer_id", $user->id)
             ->exists();
     }
 
@@ -50,6 +58,10 @@ class DocumentPolicy
      */
     public function create(User $user): bool
     {
+        if (!$user->isActive()) {
+            return false;
+        }
+
         return $user->isAdmin() || $user->isOperator() || $user->isSigner();
     }
 
@@ -58,8 +70,12 @@ class DocumentPolicy
      */
     public function update(User $user, Document $document): bool
     {
+        if (!$user->isActive()) {
+            return false;
+        }
+
         // Only draft or rejected documents can be updated
-        if (!$document->isDraft() && $document->status !== 'rejected') {
+        if (!$document->isDraft() && $document->status !== "rejected") {
             return false;
         }
 
@@ -70,7 +86,8 @@ class DocumentPolicy
 
         // Admin can update drafts in their department
         if ($user->isAdmin()) {
-            return $user->department_id === $document->creator?->department_id;
+            $docDepartmentId = $document->department_id ?? $document->creator?->department_id;
+            return $user->department_id !== null && $user->department_id === $docDepartmentId;
         }
 
         // Only creator can update
@@ -82,6 +99,10 @@ class DocumentPolicy
      */
     public function delete(User $user, Document $document): bool
     {
+        if (!$user->isActive()) {
+            return false;
+        }
+
         // Cannot delete signed documents
         if ($document->isSignedValid()) {
             return false;
@@ -94,7 +115,8 @@ class DocumentPolicy
 
         // Admin can delete non-signed in their department
         if ($user->isAdmin()) {
-            return $user->department_id === $document->creator?->department_id;
+            $docDepartmentId = $document->department_id ?? $document->creator?->department_id;
+            return $user->department_id !== null && $user->department_id === $docDepartmentId;
         }
 
         // Creator can delete their own draft/pending documents
@@ -122,8 +144,12 @@ class DocumentPolicy
      */
     public function finalize(User $user, Document $document): bool
     {
+        if (!$user->isActive()) {
+            return false;
+        }
+
         // Only draft or rejected documents can be updated
-        if (!$document->isDraft() && $document->status !== 'rejected') {
+        if (!$document->isDraft() && $document->status !== "rejected") {
             return false;
         }
 
@@ -134,7 +160,8 @@ class DocumentPolicy
 
         // Admin can finalize if in same department
         if ($user->isAdmin()) {
-            return $user->department_id === $document->creator?->department_id;
+            $docDepartmentId = $document->department_id ?? $document->creator?->department_id;
+            return $user->department_id !== null && $user->department_id === $docDepartmentId;
         }
 
         // Only creator (admin/operator) can finalize
@@ -147,6 +174,10 @@ class DocumentPolicy
      */
     public function revoke(User $user, Document $document): bool
     {
+        if (!$user->isActive()) {
+            return false;
+        }
+
         // Only signed documents can be revoked
         if (!$document->isSignedValid()) {
             return false;
@@ -159,7 +190,8 @@ class DocumentPolicy
 
         // Admin can revoke in their department
         if ($user->isAdmin()) {
-            return $user->department_id === $document->creator?->department_id;
+            $docDepartmentId = $document->department_id ?? $document->creator?->department_id;
+            return $user->department_id !== null && $user->department_id === $docDepartmentId;
         }
 
         // Creator can revoke their own documents
@@ -169,8 +201,8 @@ class DocumentPolicy
 
         // Signers who have signed can also revoke
         return $document->signerAssignments()
-            ->where('signer_id', $user->id)
-            ->where('status', 'signed')
+            ->where("signer_id", $user->id)
+            ->where("status", "signed")
             ->exists();
     }
 
@@ -179,6 +211,10 @@ class DocumentPolicy
      */
     public function sign(User $user, Document $document): bool
     {
+        if (!$user->isActive()) {
+            return false;
+        }
+
         // Document must be pending signature
         if (!$document->isPendingSignature()) {
             return false;
@@ -186,8 +222,8 @@ class DocumentPolicy
 
         // User must be an assigned signer with pending status
         return $document->signerAssignments()
-            ->where('signer_id', $user->id)
-            ->whereIn('status', ['pending', 'notified'])
+            ->where("signer_id", $user->id)
+            ->whereIn("status", ["pending", "notified"])
             ->exists();
     }
 }

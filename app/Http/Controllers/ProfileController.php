@@ -48,6 +48,10 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        if ($user->isSuperAdmin() && \App\Models\User::where('role', 'super_admin')->count() <= 1) {
+            abort(403, 'Super admin terakhir tidak dapat menghapus akunnya sendiri.');
+        }
+
         Auth::logout();
 
         $user->delete();

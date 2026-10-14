@@ -19,10 +19,12 @@ class SuperAdminSeeder extends Seeder
             return;
         }
 
+        $password = env('SUPER_ADMIN_PASSWORD', app()->environment(['local', 'testing']) ? 'SuperAdmin123!' : \Illuminate\Support\Str::random(16));
+
         User::create([
             'name' => 'Super Admin',
             'email' => 'fikrifahruroji@uniga.ac.id',
-            'password' => Hash::make('SuperAdmin123!'),
+            'password' => Hash::make($password),
             'role' => 'super_admin',
             'department_id' => null,
             'position' => 'Super Administrator',
@@ -32,6 +34,6 @@ class SuperAdminSeeder extends Seeder
 
         $this->command->info('Super admin created successfully.');
         $this->command->info('Email: fikrifahruroji@uniga.ac.id');
-        $this->command->info('Password: SuperAdmin123!');
+        if (app()->environment(['local', 'testing'])) { $this->command->info('Password: ' . $password); }
     }
 }

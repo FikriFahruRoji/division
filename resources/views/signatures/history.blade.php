@@ -18,7 +18,7 @@
             <thead>
                 <tr class="bg-primary/5 dark:bg-primary/10 border-b border-border-color dark:border-zinc-700">
                     <th class="px-6 py-4 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">No. Dokumen</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">Judul</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">Nama Dokumen</th>
                     <th class="px-6 py-4 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">Status</th>
                     <th class="px-6 py-4 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">Ditandatangani Pada</th>
                     <th class="px-6 py-4 text-right text-xs font-semibold text-text-secondary uppercase tracking-wider">Aksi</th>

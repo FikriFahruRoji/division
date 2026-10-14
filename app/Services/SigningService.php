@@ -84,11 +84,19 @@ class SigningService
         $originalPath = Storage::disk('local')->path($document->file_path);
         $originalHash = hash_file('sha256', $originalPath);
 
+        // Delete old signatures on re-finalization (SEC-18)
+        $document->signatures()->delete();
+
         $document->update([
             'status' => 'pending_signature',
             'signed_file_path' => null,
             'hash' => $originalHash
         ]);
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('verification_records')) { $document->verificationRecord?->update([
+            'status' => 'pending',
+            'fingerprint' => $document->fingerprint,
+        ]); }
         
         // Notify first signer(s) based on mode
         $this->notifyNextSigners($document);
@@ -129,77 +137,107 @@ class SigningService
      */
     public function signDocument(Document $document, User $signer, array $qrPosition = []): Signature
     {
-        $assignment = $document->signerAssignments()
-            ->where('signer_id', $signer->id)
-            ->whereIn('status', ['pending', 'notified'])
-            ->first();
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($document, $signer, $qrPosition) {
+            // Lock document and assignment for update (SEC-09)
+            $lockedDoc = Document::where('id', $document->id)->lockForUpdate()->firstOrFail();
             
-        if (!$assignment) {
-            throw new \Exception('Anda tidak memiliki izin untuk menandatangani dokumen ini.');
-        }
-        
-        // For sequential mode, enforce signing order
-        if ($document->sign_mode === 'sequential') {
-            $nextSigner = $document->getNextSigner();
-            if (!$nextSigner || $nextSigner->signer_id !== $signer->id) {
-                throw new \Exception('Belum giliran Anda untuk menandatangani dokumen ini. Harap tunggu penandatangan sebelumnya.');
+            if (!$lockedDoc->isPendingSignature()) {
+                throw new \Exception('Dokumen tidak dalam status menunggu tanda tangan.');
             }
-        }
-        
-        // Get the source PDF (signed version if exists, otherwise original with QR)
-        $sourcePath = $document->signed_file_path 
-            ? Storage::disk('local')->path($document->signed_file_path)
-            : Storage::disk('local')->path($document->file_path);
+
+            $assignment = $lockedDoc->signerAssignments()
+                ->where('signer_id', $signer->id)
+                ->lockForUpdate()
+                ->first();
+                
+            if (!$assignment || !in_array($assignment->status, ['pending', 'notified'])) {
+                throw new \Exception('Anda tidak memiliki izin atau sudah menandatangani dokumen ini.');
+            }
+
+            // Prevent duplicate signatures
+            if ($lockedDoc->signatures()->where('signer_id', $signer->id)->exists()) {
+                throw new \Exception('Anda sudah menandatangani dokumen ini.');
+            }
             
-        // Apply visual signature to PDF with custom QR position
-        $signedPdfPath = $this->applyVisualSignature($document, $signer, $sourcePath, $qrPosition);
-        
-        // Calculate new hash after signing
-        $newHash = hash_file('sha256', Storage::disk('local')->path($signedPdfPath));
-        
-        // Create signature record
-        $signature = Signature::create([
-            'document_id' => $document->id,
-            'signer_id' => $signer->id,
-            'signature_blob_path' => $signedPdfPath,
-            'signed_hash' => $newHash,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
-        
-        // Update document with new signed file path
-        $document->update([
-            'signed_file_path' => $signedPdfPath,
-            'hash' => $newHash,
-        ]);
-        
-        // Mark assignment as signed
-        $assignment->markAsSigned();
-        
-        // Check if all signers have signed
-        if ($document->fresh()->allSignersSigned()) {
-            $document->update(['status' => 'signed_valid']);
+            // For sequential mode, enforce signing order
+            if ($lockedDoc->sign_mode === 'sequential') {
+                $nextSigner = $lockedDoc->getNextSigner();
+                if (!$nextSigner || $nextSigner->signer_id !== $signer->id) {
+                    throw new \Exception('Belum giliran Anda untuk menandatangani dokumen ini. Harap tunggu penandatangan sebelumnya.');
+                }
+            }
             
+            // Get the source PDF (signed version if exists, otherwise original with QR)
+            $sourcePath = $lockedDoc->signed_file_path 
+                ? Storage::disk('local')->path($lockedDoc->signed_file_path)
+                : Storage::disk('local')->path($lockedDoc->file_path);
+                
+            // Apply visual signature to PDF with custom QR position
+            $signedPdfPath = $this->applyVisualSignature($lockedDoc, $signer, $sourcePath, $qrPosition);
+
+            // Re-verify after PDF generation to prevent interleaving race conditions (SEC-09)
+            if ($assignment->fresh()->status === 'signed' || $lockedDoc->fresh()->signatures()->where('signer_id', $signer->id)->exists()) {
+                throw new \Exception('Dokumen atau penugasan telah ditandatangani oleh proses lain.');
+            }
+            
+            // Calculate new hash after signing
+            $newHash = hash_file('sha256', Storage::disk('local')->path($signedPdfPath));
+            $newFingerprint = strtoupper(substr($newHash, 0, 16));
+            
+            // Create signature record
+            $signature = Signature::create([
+                'document_id' => $lockedDoc->id,
+                'signer_id' => $signer->id,
+                'signature_blob_path' => $signedPdfPath,
+                'signed_hash' => $newHash,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+            
+            // Update document with new signed file path
+            $updateFields = [
+                'signed_file_path' => $signedPdfPath,
+                'hash' => $newHash,
+            ];
+            if (\Illuminate\Support\Facades\Schema::hasColumn($lockedDoc->getTable(), 'fingerprint')) {
+                $updateFields['fingerprint'] = $newFingerprint;
+            }
+            $lockedDoc->update($updateFields);
+            
+            // Mark assignment as signed
+            $assignment->markAsSigned();
+            
+            // Check if all signers have signed
+            if ($lockedDoc->fresh()->allSignersSigned()) {
+                $lockedDoc->update(['status' => 'signed_valid']);
+                
+                // Update verification record to valid upon full approval & final seal (SEC-01)
+                if (\Illuminate\Support\Facades\Schema::hasTable('verification_records')) { $lockedDoc->verificationRecord?->update([
+                    'status' => 'valid',
+                    'fingerprint' => $newFingerprint,
+                ]); }
+
+                AuditLog::log(
+                    'fully_signed',
+                    "Dokumen '{$lockedDoc->title}' telah ditandatangani lengkap",
+                    $signer->id,
+                    $lockedDoc->id
+                );
+            } else {
+                // Notify next signer (for sequential mode)
+                $this->notifyNextSigners($lockedDoc);
+            }
+        
             AuditLog::log(
-                'fully_signed',
-                "Dokumen '{$document->title}' telah ditandatangani lengkap",
+                'sign',
+                "Dokumen '{$lockedDoc->title}' ditandatangani oleh {$signer->name}",
                 $signer->id,
-                $document->id
+                $lockedDoc->id,
+                ['signer_position' => $signer->position, 'qr_position' => $qrPosition]
             );
-        } else {
-            // Notify next signer (for sequential mode)
-            $this->notifyNextSigners($document);
-        }
-        
-        AuditLog::log(
-            'sign',
-            "Dokumen '{$document->title}' ditandatangani oleh {$signer->name}",
-            $signer->id,
-            $document->id,
-            ['signer_position' => $signer->position, 'qr_position' => $qrPosition]
-        );
-        
-        return $signature;
+            
+            return $signature;
+        });
     }
     
     /**
@@ -346,15 +384,23 @@ class SigningService
         $pdf->SetXY($x, $y + 7);
         $pdf->Cell($boxWidth, 5, $signer->name, 0, 1, 'C');
         
-        // Add position
+        // Add NIP/NIDN (if available)
         $pdf->SetFont('helvetica', '', 7);
         $pdf->SetXY($x, $y + 12);
         $pdf->Cell($boxWidth, 4, $signer->position ?? '', 0, 1, 'C');
+
+        // Add NIP/NIDN below position
+        if (!empty($signer->nip_nidn)) {
+            $pdf->SetFont('helvetica', '', 6);
+            $pdf->SetXY($x, $y + 16);
+            $pdf->Cell($boxWidth, 4, 'NIP/NIDN: ' . $signer->nip_nidn, 0, 1, 'C');
+        }
         
         // Add date
         $pdf->SetFont('helvetica', '', 6);
         $pdf->SetTextColor(100, 100, 100);
-        $pdf->SetXY($x, $y + 18);
+        $yDate = !empty($signer->nip_nidn) ? $y + 20 : $y + 18;
+        $pdf->SetXY($x, $yDate);
         $pdf->Cell($boxWidth, 4, now()->format('d/m/Y H:i'), 0, 1, 'C');
     }
     
@@ -376,6 +422,7 @@ class SigningService
         
         // Update document status to rejected
         $document->update(['status' => 'rejected']);
+        if (\Illuminate\Support\Facades\Schema::hasTable('verification_records')) { $document->verificationRecord?->update(['status' => 'rejected']); }
         
         AuditLog::log(
             'reject',

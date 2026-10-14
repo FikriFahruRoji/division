@@ -47,11 +47,12 @@ class CertificateService
             "countryName" => "ID"
         ];
         
-        $csr = openssl_csr_new($dn, $privKey);
+        $csr = openssl_csr_new($dn, $privKey, ["digest_alg" => "sha256"]);
         
-        // 3. Self-sign the ISO
+        // 3. Self-sign the cert with explicit SHA-256 and unique serial (SEC-13)
         // Valid for 365 days
-        $sscert = openssl_csr_sign($csr, null, $privKey, 365);
+        $serial = time() + (int) $user->id;
+        $sscert = openssl_csr_sign($csr, null, $privKey, 365, ["digest_alg" => "sha256"], $serial);
         
         // 4. Export to files
         openssl_x509_export($sscert, $certout);

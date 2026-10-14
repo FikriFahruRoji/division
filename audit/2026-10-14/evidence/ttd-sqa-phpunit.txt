@@ -1,0 +1,9 @@
+PHPUnit 11.5.50 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.1
+Configuration: /Users/fikrifahruroji/Documents/gravity project/ttd-digital/phpunit.xml
+
+Time: 00:02.983, Memory: 72.50 MB
+
+OK, but there were issues!
+Tests: 156, Assertions: 293, PHPUnit Deprecations: 130.

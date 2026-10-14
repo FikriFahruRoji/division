@@ -25,7 +25,7 @@ class SocialiteController extends Controller
     {
         try {
             // Use stateless to avoid InvalidStateException (session state mismatch)
-            $googleUser = Socialite::driver('google')->stateless()->user();
+            $googleUser = Socialite::driver('google')->user();
         } catch (\Exception $e) {
             return redirect()->route('login')->with('error', 'Gagal login dengan Google. Silakan coba lagi.');
         }

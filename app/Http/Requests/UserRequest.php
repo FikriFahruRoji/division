@@ -60,6 +60,12 @@ abstract class UserRequest extends FormRequest
                 'max:255',
                 'regex:/^[a-zA-Z0-9\s\.\,\-\']+$/u',
             ],
+            'nip_nidn'      => [
+                'nullable',
+                'string',
+                'max:30',
+                'regex:/^[0-9]+$/',
+            ],
             'status' => ['required', 'string', 'in:active,inactive'],
         ];
     }
@@ -78,6 +84,7 @@ abstract class UserRequest extends FormRequest
             'name'     => trim($this->name ?? ''),
             'email'    => strtolower(trim($this->email ?? '')),
             'position' => $this->position ? trim($this->position) : null,
+            'nip_nidn' => $this->nip_nidn ? trim($this->nip_nidn) : null,
         ]);
     }
 
@@ -93,6 +100,8 @@ abstract class UserRequest extends FormRequest
             'department_id.in'    => 'Anda hanya bisa mengelola user di departemen Anda.',
             'position.regex'      => 'Jabatan hanya boleh berisi huruf, angka, dan karakter dasar.',
             'role.in'             => 'Anda tidak memiliki izin untuk role ini.',
+            'nip_nidn.regex'      => 'NIP/NIDN hanya boleh berisi angka.',
+            'nip_nidn.max'        => 'NIP/NIDN maksimal 30 karakter.',
         ];
     }
 }

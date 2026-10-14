@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('document_id')->constrained()->onDelete('cascade');
             $table->uuid('token')->unique(); // Same as qr_token in documents table
             $table->string('fingerprint', 16);
-            $table->enum('status', ['valid', 'superseded', 'revoked'])->default('valid');
+            $table->string('status', 30)->default('draft');
             $table->integer('access_count')->default(0); // Track verification attempts
             $table->timestamp('last_accessed_at')->nullable();
             $table->timestamps();

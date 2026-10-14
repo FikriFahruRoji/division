@@ -37,6 +37,9 @@ class SignatureController extends Controller
     public function show(Document $document)
     {
         $user = auth()->user();
+
+        // Check view authorization first (SEC-17)
+        $this->authorize('view', $document);
         
         // Check if user is assigned to this document
         $assignment = $document->signerAssignments()

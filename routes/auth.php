@@ -19,13 +19,8 @@ Route::middleware('guest')->group(function () {
     Route::get('auth/google/callback', [SocialiteController::class, 'handleGoogleCallback'])
         ->name('auth.google.callback');
 
-    // Rate limit: 3 registration attempts per minute
-    Route::middleware('throttle:3,1')->group(function () {
-        Route::get('register', [RegisteredUserController::class, 'create'])
-            ->name('register');
-
-        Route::post('register', [RegisteredUserController::class, 'store']);
-    });
+    // Public self-registration is disabled per SEC-04 security audit.
+    // User accounts must be created by administrators.
 
     // Rate limit: 5 login attempts per minute
     Route::middleware('throttle:5,1')->group(function () {

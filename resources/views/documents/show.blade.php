@@ -228,7 +228,7 @@
             <div class="p-6 text-center">
                 <h4 class="font-bold text-text-main dark:text-white mb-4">Verifikasi</h4>
                 <div class="inline-block p-4 bg-white rounded-lg shadow-sm">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ urlencode(route('verify', $document->qr_token)) }}" alt="QR Code" class="mx-auto">
+                    <img src="{{ app(\App\Services\QrCodeService::class)->generateBase64Qr($document) }}" alt="QR Code" class="mx-auto w-[150px] h-[150px]">
                 </div>
                 <p class="mt-3 text-xs text-text-secondary">Scan untuk verifikasi</p>
                 <p class="mt-1 text-xs font-mono bg-background-light dark:bg-zinc-700 px-2 py-1 rounded inline-block">{{ $document->fingerprint }}</p>

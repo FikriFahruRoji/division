@@ -42,6 +42,9 @@
         [x-cloak] { display: none !important; }
     </style>
 
+    <!-- Alpine.js (Loaded in head with defer per official guidelines) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+
 
     
     <!-- Tailwind Config -->
@@ -81,7 +84,7 @@
     @include('components.sidebar')
     
     <!-- Mobile Backdrop -->
-    <div x-cloak x-show="mobileMenuOpen" @click="mobileMenuOpen = false" x-transition.opacity class="fixed inset-0 z-40 bg-black/50 lg:hidden backdrop-blur-sm"></div>
+    <div x-cloak x-show="mobileMenuOpen" style="display: none;" @click="mobileMenuOpen = false" x-transition.opacity class="fixed inset-0 z-40 bg-black/50 lg:hidden backdrop-blur-sm"></div>
 
     <!-- Main Content Wrapper -->
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -133,7 +136,7 @@
                     </button>
 
                     <!-- Notification Dropdown -->
-                    <div x-cloak x-show="notificationOpen" @click.away="notificationOpen = false" 
+                    <div x-cloak x-show="notificationOpen" style="display: none;" @click.away="notificationOpen = false" 
                          x-transition:enter="transition ease-out duration-200"
                          x-transition:enter-start="opacity-0 translate-y-2"
                          x-transition:enter-end="opacity-100 translate-y-0"
@@ -226,8 +229,7 @@
         </main>
     </div>
     
-    <!-- Alpine.js for dropdown -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
     
     @stack('scripts')
 </body>

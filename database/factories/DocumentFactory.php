@@ -129,6 +129,7 @@ class DocumentFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'creator_id' => $creator->id,
+            'department_id' => $creator->department_id,
         ]);
     }
 }

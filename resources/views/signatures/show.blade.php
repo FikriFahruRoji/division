@@ -147,12 +147,14 @@
             <div class="flex gap-3">
                 <span class="material-symbols-outlined text-primary flex-shrink-0">info</span>
                 <p class="text-sm text-yellow-800 dark:text-yellow-200">
-                    @if($assignment->status === 'signed')
+                    @if($assignment && $assignment->status === 'signed')
                         Anda sudah menandatangani dokumen ini.
-                    @elseif($assignment->status === 'rejected')
+                    @elseif($assignment && $assignment->status === 'rejected')
                         Anda sudah menolak dokumen ini.
-                    @else
+                    @elseif($assignment)
                         Menunggu giliran Anda untuk menandatangani.
+                    @else
+                        Anda melihat dokumen ini sebagai Administrator (tidak ditugaskan sebagai penandatangan).
                     @endif
                 </p>
             </div>
@@ -296,9 +298,12 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script type="module">
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs';
+    window.pdfjsLib = pdfjsLib;
+</script>
 <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     
     const pdfUrl = '{{ route("documents.preview", $document) }}';
     const canSign = {{ $canSign ? 'true' : 'false' }};
@@ -320,7 +325,7 @@
     // Load the PDF
     async function loadPDF() {
         try {
-            pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+            pdfDoc = await pdfjsLib.getDocument({ url: pdfUrl, isEvalSupported: false }).promise;
             totalPages = pdfDoc.numPages;
             
             document.getElementById('page-info').textContent = `1 / ${totalPages}`;

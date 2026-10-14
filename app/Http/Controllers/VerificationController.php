@@ -32,18 +32,26 @@ class VerificationController extends Controller
 
     /**
      * Preview the document via verification token.
+     * Requires authentication and view policy authorization (SEC-03).
      */
     public function preview(string $token, ?string $filename = null)
     {
         $record = VerificationRecord::where('token', $token)->first();
         
-        if (!$record) {
+        if (!$record || !$record->document) {
             abort(404, 'Dokumen tidak ditemukan.');
         }
         
         $document = $record->document;
-        if (!$document) {
-            abort(404, 'Dokumen tidak ditemukan.');
+
+        // Require authentication to access file content (SEC-03)
+        if (!auth()->check()) {
+            return redirect()->guest(route('login'))->with('error', 'Silakan login terlebih dahulu untuk mengakses file dokumen.');
+        }
+
+        $user = auth()->user();
+        if (!$user->isActive() || $user->cannot('view', $document)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk melihat file dokumen ini.');
         }
         
         $path = $document->signed_file_path ?? $document->file_path;
@@ -69,16 +77,19 @@ class VerificationController extends Controller
 
     /**
      * Download the document via verification token.
-     * Dinonaktifkan untuk verifikasi QR (semua role), dialihkan ke preview.
+     * Requires authentication and view policy authorization (SEC-03).
      */
     public function download(string $token, ?string $filename = null)
     {
         $record = VerificationRecord::where('token', $token)->first();
-        if ($record && $record->document) {
-            $safeDocNumber = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) ($record->document->doc_number ?? ''));
-            $expectedFilename = ($safeDocNumber ?: 'dokumen') . '_' . ($record->document->signed_file_path ? 'signed' : 'original') . '.pdf';
-            return redirect()->route('verify.preview', ['token' => $token, 'filename' => $expectedFilename]);
+        if (!$record || !$record->document) {
+            abort(404, 'Dokumen tidak ditemukan.');
         }
-        return redirect()->route('verify.preview', ['token' => $token]);
+
+        if (!auth()->check()) {
+            return redirect()->guest(route('login'))->with('error', 'Silakan login terlebih dahulu untuk mengakses file dokumen.');
+        }
+
+        return redirect()->route('documents.download', $record->document);
     }
 }

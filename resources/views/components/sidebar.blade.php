@@ -92,7 +92,7 @@
             </div>
 
             <!-- Up-pop Menu -->
-            <div x-cloak x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-2" class="absolute bottom-full left-0 mb-3 w-full bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-border-color dark:border-zinc-700 py-1.5 overflow-hidden z-[60]">
+            <div x-cloak x-show="open" style="display: none;" @click.away="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-2" class="absolute bottom-full left-0 mb-3 w-full bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-border-color dark:border-zinc-700 py-1.5 overflow-hidden z-[60]">
                 <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-text-main dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors">
                     <span class="material-symbols-outlined text-lg">person</span>
                     Profile

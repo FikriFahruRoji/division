@@ -76,7 +76,7 @@ class DocumentService
             'document_id' => $document->id,
             'token' => $document->qr_token,
             'fingerprint' => $fingerprint,
-            'status' => 'valid',
+            'status' => 'draft',
         ]);
         
         // Log the upload
@@ -178,7 +178,7 @@ class DocumentService
             'document_id' => $newDocument->id,
             'token' => $newDocument->qr_token,
             'fingerprint' => $fingerprint,
-            'status' => 'valid',
+            'status' => 'draft',
         ]);
         
         // Log the version creation
@@ -253,10 +253,8 @@ class DocumentService
     {
         $this->validateFileSecurity($file);
         
-        // Delete old file
-        if ($document->file_path && Storage::disk('local')->exists($document->file_path)) {
-             Storage::disk('local')->delete($document->file_path);
-        }
+        // Save old file path to delete only after new file is persisted (SEC-22)
+        $oldFilePath = $document->file_path;
         
         // Generate new filename
         $randomFilename = Str::uuid() . '.pdf';
@@ -276,6 +274,11 @@ class DocumentService
             'hash' => $hash,
             'fingerprint' => $fingerprint,
         ]);
+
+        // Delete old file only after successful DB update
+        if ($oldFilePath && Storage::disk('local')->exists($oldFilePath)) {
+             Storage::disk('local')->delete($oldFilePath);
+        }
         
         // Update VerificationRecord
         $document->verificationRecord?->update([

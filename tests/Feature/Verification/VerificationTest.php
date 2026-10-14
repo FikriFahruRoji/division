@@ -26,8 +26,15 @@ class VerificationTest extends TestCase
     /** @test */
     public function public_can_access_verification_page_with_valid_token(): void
     {
-        $doc = Document::factory()->signedValid()->create();
-        $verification = VerificationRecord::factory()->create([
+        $signedFilePath = 'documents/signed_test.pdf';
+        $content = "%PDF-1.4 valid test content";
+        Storage::disk('local')->put($signedFilePath, $content);
+
+        $doc = Document::factory()->signedValid()->create([
+            'signed_file_path' => $signedFilePath,
+            'hash' => hash('sha256', $content),
+        ]);
+        VerificationRecord::factory()->create([
             'document_id' => $doc->id,
             'token' => $doc->qr_token,
             'status' => 'valid',
@@ -41,13 +48,20 @@ class VerificationTest extends TestCase
     public function verification_shows_not_found_for_invalid_token(): void
     {
         $this->get(route('verify', 'invalid-token-xyz'))
-            ->assertStatus(200); // Menampilkan halaman not-found, bukan 404
+            ->assertStatus(200); // Menampilkan halaman not-found
     }
 
     /** @test */
     public function verification_page_is_accessible_without_login(): void
     {
-        $doc = Document::factory()->signedValid()->create();
+        $signedFilePath = 'documents/signed_test.pdf';
+        $content = "%PDF-1.4 valid test content";
+        Storage::disk('local')->put($signedFilePath, $content);
+
+        $doc = Document::factory()->signedValid()->create([
+            'signed_file_path' => $signedFilePath,
+            'hash' => hash('sha256', $content),
+        ]);
         VerificationRecord::factory()->create([
             'document_id' => $doc->id,
             'token' => $doc->qr_token,
@@ -62,7 +76,7 @@ class VerificationTest extends TestCase
     }
 
     /** @test */
-    public function revoked_document_shows_invalid_status(): void
+    public function revoked_document_shows_revoked_status(): void
     {
         $doc = Document::factory()->revoked()->create();
         VerificationRecord::factory()->create([
@@ -73,14 +87,12 @@ class VerificationTest extends TestCase
 
         $response = $this->get(route('verify', $doc->qr_token));
         $response->assertStatus(200);
-        // The response should contain revoked status info
-        $response->assertSee($doc->title);
+        $response->assertSee('DICABUT');
     }
 
     /** @test */
-    public function valid_document_preview_is_accessible_via_token(): void
+    public function public_guest_cannot_preview_document_without_login(): void
     {
-        // Create a fake signed PDF file
         $signedFilePath = 'documents/signed_test.pdf';
         Storage::disk('local')->put($signedFilePath, "%PDF-1.4 fake content");
 
@@ -93,39 +105,73 @@ class VerificationTest extends TestCase
             'status' => 'valid',
         ]);
 
+        // Guest is redirected to login (SEC-03)
         $this->get(route('verify.preview', $doc->qr_token))
+            ->assertRedirect(route('login'));
+    }
+
+    /** @test */
+    public function authorized_user_can_preview_via_token(): void
+    {
+        $user = User::factory()->superAdmin()->create();
+        $signedFilePath = 'documents/signed_test.pdf';
+        Storage::disk('local')->put($signedFilePath, "%PDF-1.4 fake content");
+
+        $doc = Document::factory()->signedValid()->create([
+            'signed_file_path' => $signedFilePath,
+        ]);
+        VerificationRecord::factory()->create([
+            'document_id' => $doc->id,
+            'token' => $doc->qr_token,
+            'status' => 'valid',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('verify.preview', $doc->qr_token))
             ->assertStatus(200);
     }
 
     /** @test */
     public function invalid_token_preview_returns_404(): void
     {
-        $this->get(route('verify.preview', 'invalid-token'))
+        $user = User::factory()->superAdmin()->create();
+        $this->actingAs($user)
+            ->get(route('verify.preview', 'invalid-token'))
             ->assertStatus(404);
     }
 
     /** @test */
-    public function revoked_document_preview_is_accessible_when_file_exists(): void
+    public function unauthorized_user_cannot_preview_via_token(): void
     {
-        $signedFilePath = 'documents/signed_revoked_test.pdf';
-        Storage::disk('local')->put($signedFilePath, "%PDF-1.4 fake content for revoked test");
+        $otherUser = User::factory()->operator()->create();
+        $signedFilePath = 'documents/signed_test.pdf';
+        Storage::disk('local')->put($signedFilePath, "%PDF-1.4 fake content");
 
-        $doc = Document::factory()->revoked()->create([
+        $doc = Document::factory()->signedValid()->create([
             'signed_file_path' => $signedFilePath,
         ]);
         VerificationRecord::factory()->create([
             'document_id' => $doc->id,
             'token' => $doc->qr_token,
-            'status' => 'revoked',
+            'status' => 'valid',
         ]);
-        $this->get(route('verify.preview', $doc->qr_token))
-            ->assertStatus(200);
+
+        $this->actingAs($otherUser)
+            ->get(route('verify.preview', $doc->qr_token))
+            ->assertForbidden();
     }
 
     /** @test */
-    public function verification_page_shows_preview_button_and_hides_download_button(): void
+    public function verification_page_hides_preview_from_guest(): void
     {
-        $doc = Document::factory()->signedValid()->create();
+        $signedFilePath = 'documents/signed_test.pdf';
+        $content = "%PDF-1.4 test";
+        Storage::disk('local')->put($signedFilePath, $content);
+
+        $doc = Document::factory()->signedValid()->create([
+            'signed_file_path' => $signedFilePath,
+            'hash' => hash('sha256', $content),
+        ]);
         VerificationRecord::factory()->create([
             'document_id' => $doc->id,
             'token' => $doc->qr_token,
@@ -135,29 +181,21 @@ class VerificationTest extends TestCase
         $response = $this->get(route('verify', $doc->qr_token));
 
         $response->assertStatus(200);
-        $response->assertSee('Lihat File');
-        $response->assertDontSee('Unduh PDF');
+        $response->assertDontSee('Lihat File');
+        $response->assertSee('Akses isi file PDF memerlukan akun yang berwenang');
     }
 
     /** @test */
-    public function download_route_redirects_to_preview_for_all_roles(): void
+    public function download_route_redirects_guest_to_login(): void
     {
         $doc = Document::factory()->signedValid()->create();
+        VerificationRecord::factory()->create([
+            'document_id' => $doc->id,
+            'token' => $doc->qr_token,
+            'status' => 'valid',
+        ]);
 
-        // Test as guest
         $this->get(route('verify.download', $doc->qr_token))
-            ->assertRedirect(route('verify.preview', $doc->qr_token));
-
-        // Test as authenticated signer
-        $signer = User::factory()->signer()->create();
-        $this->actingAs($signer)
-            ->get(route('verify.download', $doc->qr_token))
-            ->assertRedirect(route('verify.preview', $doc->qr_token));
-
-        // Test as authenticated admin
-        $admin = User::factory()->admin()->create();
-        $this->actingAs($admin)
-            ->get(route('verify.download', $doc->qr_token))
-            ->assertRedirect(route('verify.preview', $doc->qr_token));
+            ->assertRedirect(route('login'));
     }
 }

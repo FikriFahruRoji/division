@@ -120,6 +120,19 @@
                             class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="Contoh: Kepala Bagian, Staff">
                     </div>
+
+                    <!-- NIP / NIDN -->
+                    <div>
+                        <label for="nip_nidn" class="block text-sm font-medium text-text-main dark:text-white mb-2">
+                            NIP / NIDN
+                        </label>
+                        <input type="text" name="nip_nidn" id="nip_nidn" value="{{ old('nip_nidn') }}"
+                            class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="Contoh: 19800101200501001"
+                            inputmode="numeric" maxlength="30">
+                        <p class="mt-1 text-xs text-text-secondary">Nomor Induk Pegawai (PNS) atau Nomor Induk Dosen Nasional</p>
+                        @error('nip_nidn')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
+                    </div>
                 </div>
                 
                 <!-- Actions -->

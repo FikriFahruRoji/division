@@ -20,14 +20,25 @@ class DashboardController extends Controller
         // Initialize base query for document stats
         $baseQuery = Document::query();
         
-        // Filter documents based on user role
+        // Filter documents based on user role (SEC-05)
         if ($user->isSuperAdmin()) {
             // Super admin sees all documents
         } elseif ($user->role === 'admin' && $user->department_id) {
             // Admin sees only documents from their department
-            $baseQuery->whereHas('creator', fn($q) => $q->where('department_id', $user->department_id));
+            $baseQuery->where(function ($q) use ($user) {
+                $q->where('department_id', $user->department_id)
+                  ->orWhere(fn($sq) => $sq->whereNull('department_id')->whereHas('creator', fn($cq) => $cq->where('department_id', $user->department_id)));
+            });
         } elseif ($user->isOperator()) {
-            // Operator sees all documents (or could be filtered by department)
+            // Operator sees only documents within their department, or own documents if no department
+            if ($user->department_id) {
+                $baseQuery->where(function ($q) use ($user) {
+                    $q->where('department_id', $user->department_id)
+                      ->orWhere(fn($sq) => $sq->whereNull('department_id')->whereHas('creator', fn($cq) => $cq->where('department_id', $user->department_id)));
+                });
+            } else {
+                $baseQuery->where('creator_id', $user->id);
+            }
         } else {
             // Signer sees only their documents
             $baseQuery->where(function ($q) use ($user) {
@@ -77,27 +88,31 @@ class DashboardController extends Controller
             ];
         }
         
-        // Recent documents - filtered by role
-        if ($user->isSuperAdmin() || $user->isOperator()) {
-            $documents = Document::with(['creator', 'signerAssignments.signer'])
-                ->latest()
-                ->paginate(10);
+        // Recent documents - filtered by role and department scope (SEC-05)
+        $docsQuery = Document::with(['creator', 'signerAssignments.signer'])->latest();
+        if ($user->isSuperAdmin()) {
+            // Super admin sees all
         } elseif ($user->role === 'admin' && $user->department_id) {
-            // Admin sees documents from their department
-            $documents = Document::whereHas('creator', fn($q) => $q->where('department_id', $user->department_id))
-                ->with(['creator', 'signerAssignments.signer'])
-                ->latest()
-                ->paginate(10);
+            $docsQuery->where(function ($q) use ($user) {
+                $q->where('department_id', $user->department_id)
+                  ->orWhere(fn($sq) => $sq->whereNull('department_id')->whereHas('creator', fn($cq) => $cq->where('department_id', $user->department_id)));
+            });
+        } elseif ($user->isOperator()) {
+            if ($user->department_id) {
+                $docsQuery->where(function ($q) use ($user) {
+                    $q->where('department_id', $user->department_id)
+                      ->orWhere(fn($sq) => $sq->whereNull('department_id')->whereHas('creator', fn($cq) => $cq->where('department_id', $user->department_id)));
+                });
+            } else {
+                $docsQuery->where('creator_id', $user->id);
+            }
         } else {
-            // For signers - show documents related to them
-            $documents = Document::where(function ($q) use ($user) {
+            $docsQuery->where(function ($q) use ($user) {
                 $q->where('creator_id', $user->id)
                   ->orWhereHas('signerAssignments', fn($sq) => $sq->where('signer_id', $user->id));
-            })
-            ->with(['creator', 'signerAssignments.signer'])
-            ->latest()
-            ->paginate(10);
+            });
         }
+        $documents = $docsQuery->paginate(10);
         
         // Pending signatures for signer quick actions
         $pendingSignatures = null;

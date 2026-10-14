@@ -14,6 +14,7 @@ class UserPolicy
      */
     public function viewAny(User $user): bool
     {
+        if (!$user->isActive()) return false;
         return $user->isAdmin();
     }
 
@@ -22,6 +23,7 @@ class UserPolicy
      */
     public function view(User $user, User $model): bool
     {
+        if (!$user->isActive()) return false;
         // Super admin can view all users
         if ($user->isSuperAdmin()) {
             return true;
@@ -46,6 +48,7 @@ class UserPolicy
      */
     public function create(User $user): bool
     {
+        if (!$user->isActive()) return false;
         // Super admin can always create
         if ($user->isSuperAdmin()) {
             return true;
@@ -82,6 +85,7 @@ class UserPolicy
      */
     public function update(User $user, User $model): bool
     {
+        if (!$user->isActive()) return false;
         // Super admin can update anyone
         if ($user->isSuperAdmin()) {
             return true;
@@ -111,6 +115,7 @@ class UserPolicy
      */
     public function delete(User $user, User $model): bool
     {
+        if (!$user->isActive()) return false;
         // Cannot delete self
         if ($user->id === $model->id) {
             return false;

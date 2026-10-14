@@ -14,6 +14,11 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        // Only run demo user seeding in local/testing environments (SEC-12)
+        if (!app()->environment(['local', 'testing'])) {
+            $this->command->info('Skipping demo user seed in non-local environment.');
+            return;
+        }
         // 1. Ensure default department exists
         $department = Department::firstOrCreate(
             ['code' => 'TI'],
@@ -25,7 +30,7 @@ class UserSeeder extends Seeder
         );
 
         // 2. Create or update Signer account
-        $signer = User::updateOrCreate(
+        $signer = User::firstOrCreate(
             ['email' => 'signer@uniga.ac.id'],
             [
                 'name' => 'Signer User',
@@ -41,7 +46,7 @@ class UserSeeder extends Seeder
         $this->command->info('Signer account ready: ' . $signer->email . ' (Password: Signer123!)');
 
         // 3. Create or update Staff (Operator) account
-        $staff = User::updateOrCreate(
+        $staff = User::firstOrCreate(
             ['email' => 'staff@uniga.ac.id'],
             [
                 'name' => 'Staff Operator',

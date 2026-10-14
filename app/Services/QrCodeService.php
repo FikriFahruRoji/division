@@ -8,6 +8,7 @@ use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\RoundBlockSizeMode;
+use Illuminate\Support\Str;
 use setasign\Fpdi\Tcpdf\Fpdi;
 
 class QrCodeService
@@ -31,7 +32,7 @@ class QrCodeService
         $writer = new PngWriter();
         $qrResult = $writer->write($qrCode);
 
-        $qrTempPath = storage_path('app/temp_qr_' . $document->id . '_' . time() . '.png');
+        $qrTempPath = storage_path('app/temp_qr_' . $document->id . '_' . Str::uuid() . '.png');
         $qrResult->saveToFile($qrTempPath);
 
         return $qrTempPath;
@@ -63,5 +64,25 @@ class QrCodeService
         if (file_exists($qrPath)) {
             unlink($qrPath);
         }
+    }
+
+    /**
+     * Generate QR code as base64 data URI for inline display without third-party services.
+     */
+    public function generateBase64Qr(Document $document, int $size = 150): string
+    {
+        $verificationUrl = route('verify', $document->qr_token);
+
+        $qrCode = new QrCode(
+            data: $verificationUrl,
+            encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: ErrorCorrectionLevel::High,
+            size: $size,
+            margin: 5,
+            roundBlockSizeMode: RoundBlockSizeMode::Margin
+        );
+
+        $writer = new PngWriter();
+        return $writer->write($qrCode)->getDataUri();
     }
 }

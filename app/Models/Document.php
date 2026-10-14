@@ -25,6 +25,7 @@ class Document extends Model
         'status',
         'version',
         'creator_id',
+        'department_id',
         'parent_id',
         'file_path',
         'signed_file_path',
@@ -53,6 +54,12 @@ class Document extends Model
             if (empty($document->qr_token)) {
                 $document->qr_token = Str::uuid();
             }
+            if (empty($document->department_id) && !empty($document->creator_id)) {
+                $creator = User::find($document->creator_id);
+                if ($creator && $creator->department_id) {
+                    $document->department_id = $creator->department_id;
+                }
+            }
         });
     }
 
@@ -62,6 +69,14 @@ class Document extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creator_id')->withTrashed();
+    }
+
+    /**
+     * Get the department of this document.
+     */
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     /**

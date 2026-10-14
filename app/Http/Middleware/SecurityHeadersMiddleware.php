@@ -75,7 +75,7 @@ class SecurityHeadersMiddleware
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://hcaptcha.com https://*.hcaptcha.com https://cdnjs.cloudflare.com" . $viteHosts,
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://fonts.bunny.net" . $viteHosts,
             "font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com https://fonts.bunny.net",
-            "img-src 'self' data: blob: https://api.qrserver.com",
+            "img-src 'self' data: blob:",
             "connect-src 'self' https://hcaptcha.com https://*.hcaptcha.com https://accounts.google.com" . $viteHosts . $viteWs,
             "frame-src 'self' https://hcaptcha.com https://*.hcaptcha.com",
             "frame-ancestors 'self'",

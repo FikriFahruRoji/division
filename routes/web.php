@@ -37,7 +37,7 @@ Route::middleware(['throttle:verification'])->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'verified', 'throttle:web'])->group(function () {
+Route::middleware(['auth', 'active', 'verified', 'throttle:web'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
