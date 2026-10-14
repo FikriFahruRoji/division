@@ -33,6 +33,10 @@ class SigningService
      */
     public function assignSigners(Document $document, array $signerIds, string $mode = 'single'): void
     {
+        // For now, enforce single signature mode (sequential and parallel disabled)
+        $mode = 'single';
+        $signerIds = array_slice($signerIds, 0, 1);
+
         // Update document sign mode and clear previous signatures
         // Recalculate original hash to ensure it matches the original file
         $originalPath = Storage::disk('local')->path($document->file_path);
@@ -72,41 +76,54 @@ class SigningService
      */
     public function finalizeDocument(Document $document): void
     {
-        // Reset assignments and signatures (in case of re-finalization after rejection)
-        $document->signerAssignments()->update([
-            'status' => 'pending',
-            'signed_at' => null,
-            'rejection_reason' => null
-        ]);
+        // RA-06: Atomic transaction with row lock to prevent stale finalize overwriting active/completed signatures
+        \Illuminate\Support\Facades\DB::transaction(function () use ($document) {
+            $lockedDoc = Document::where('id', $document->id)->lockForUpdate()->firstOrFail();
 
-        // Update document status and clear signed file (Reset to original)
-        // Recalculate original hash to ensure it matches the original file
-        $originalPath = Storage::disk('local')->path($document->file_path);
-        $originalHash = hash_file('sha256', $originalPath);
+            if (!in_array($lockedDoc->status, ['draft', 'rejected'])) {
+                throw new \Exception('Dokumen tidak dapat diajukan karena status saat ini bukan draft atau perbaikan (' . $lockedDoc->status . ').');
+            }
 
-        // Delete old signatures on re-finalization (SEC-18)
-        $document->signatures()->delete();
+            // Reset assignments and signatures (in case of re-finalization after rejection)
+            $lockedDoc->signerAssignments()->update([
+                'status' => 'pending',
+                'signed_at' => null,
+                'rejection_reason' => null
+            ]);
 
-        $document->update([
-            'status' => 'pending_signature',
-            'signed_file_path' => null,
-            'hash' => $originalHash
-        ]);
+            // Update document status and clear signed file (Reset to original)
+            $originalPath = Storage::disk('local')->path($lockedDoc->file_path);
+            if (!file_exists($originalPath)) {
+                throw new \Exception('Berkas asli dokumen tidak ditemukan di penyimpanan.');
+            }
+            $originalHash = hash_file('sha256', $originalPath);
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('verification_records')) { $document->verificationRecord?->update([
-            'status' => 'pending',
-            'fingerprint' => $document->fingerprint,
-        ]); }
-        
-        // Notify first signer(s) based on mode
-        $this->notifyNextSigners($document);
-        
-        AuditLog::log(
-            'finalize',
-            "Dokumen '{$document->title}' difinalisasi dan siap untuk ditandatangani",
-            auth()->id(),
-            $document->id
-        );
+            // Delete old signatures on re-finalization (SEC-18)
+            $lockedDoc->signatures()->delete();
+
+            $lockedDoc->update([
+                'status' => 'pending_signature',
+                'signed_file_path' => null,
+                'hash' => $originalHash
+            ]);
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('verification_records')) {
+                $lockedDoc->verificationRecord?->update([
+                    'status' => 'pending',
+                    'fingerprint' => $lockedDoc->fingerprint,
+                ]);
+            }
+            
+            // Notify first signer(s) based on mode
+            $this->notifyNextSigners($lockedDoc);
+            
+            AuditLog::log(
+                'finalize',
+                "Dokumen '{$lockedDoc->title}' difinalisasi dan siap untuk ditandatangani",
+                auth()->id() ?? $lockedDoc->creator_id,
+                $lockedDoc->id
+            );
+        });
     }
     
     /**
@@ -171,6 +188,19 @@ class SigningService
             $sourcePath = $lockedDoc->signed_file_path 
                 ? Storage::disk('local')->path($lockedDoc->signed_file_path)
                 : Storage::disk('local')->path($lockedDoc->file_path);
+
+            // RA-05: Strict source file integrity verification before signing
+            if (!file_exists($sourcePath)) {
+                throw new \Exception('Berkas sumber dokumen tidak ditemukan di penyimpanan.');
+            }
+            $sourceActualHash = hash_file('sha256', $sourcePath);
+            $expectedSourceHash = $lockedDoc->signed_file_path
+                ? $lockedDoc->signatures()->latest()->first()?->signed_hash
+                : $lockedDoc->hash;
+
+            if ($expectedSourceHash && $sourceActualHash !== $expectedSourceHash) {
+                throw new \Exception('Integritas berkas sumber telah berubah atau tidak sesuai dengan hash dokumen yang disetujui (RA-05).');
+            }
                 
             // Apply visual signature to PDF with custom QR position
             $signedPdfPath = $this->applyVisualSignature($lockedDoc, $signer, $sourcePath, $qrPosition);
@@ -248,18 +278,18 @@ class SigningService
         // Ensure source PDF is compatible with FPDI free parser (normalizes if compressed streams exist)
         $sourcePath = $this->pdfCompatibilityService->ensureCompatible($sourcePath);
 
-        // Get or generate user certificate
-        $certPaths = $this->certificateService->getUserCertificate($signer);
+        // RA-04: Institutional System Seal - cryptographic signature uses official System Seal
+        // while individual approvals are immutably captured in database ledger and visual stamp
+        $certPaths = $this->certificateService->getSystemCertificate();
         
         $pdf = new Fpdi();
         
-        // Digital Signature Configuration
-        // Must be called BEFORE AddPage
+        // Digital Signature Configuration (System Seal)
         $info = array(
-            'Name' => $signer->name,
-            'Location' => 'DigitalSign System',
-            'Reason' => 'Menyetujui dokumen ini secara digital',
-            'ContactInfo' => $signer->email,
+            'Name' => config('app.name', 'TTD Digital') . ' System Seal',
+            'Location' => 'DigitalSign Authority',
+            'Reason' => "Segel Digital Sistem: Disetujui secara sah oleh {$signer->name}",
+            'ContactInfo' => config('mail.from.address', 'noreply@uniga.ac.id'),
         );
         
         // Load certificate and key content
@@ -409,27 +439,34 @@ class SigningService
      */
     public function rejectDocument(Document $document, User $signer, string $reason): void
     {
-        $assignment = $document->signerAssignments()
-            ->where('signer_id', $signer->id)
-            ->whereIn('status', ['pending', 'notified'])
-            ->first();
+        // RA-11: Atomic transactional rejection with row locking
+        \Illuminate\Support\Facades\DB::transaction(function () use ($document, $signer, $reason) {
+            $lockedDoc = Document::where('id', $document->id)->lockForUpdate()->firstOrFail();
+            $assignment = $lockedDoc->signerAssignments()
+                ->where('signer_id', $signer->id)
+                ->whereIn('status', ['pending', 'notified'])
+                ->lockForUpdate()
+                ->first();
+                
+            if (!$assignment) {
+                throw new \Exception('Anda tidak memiliki izin untuk menolak dokumen ini.');
+            }
             
-        if (!$assignment) {
-            throw new \Exception('Anda tidak memiliki izin untuk menolak dokumen ini.');
-        }
-        
-        $assignment->markAsRejected($reason);
-        
-        // Update document status to rejected
-        $document->update(['status' => 'rejected']);
-        if (\Illuminate\Support\Facades\Schema::hasTable('verification_records')) { $document->verificationRecord?->update(['status' => 'rejected']); }
-        
-        AuditLog::log(
-            'reject',
-            "Dokumen '{$document->title}' ditolak oleh {$signer->name}. Alasan: {$reason}",
-            $signer->id,
-            $document->id,
-            ['reason' => $reason]
-        );
+            $assignment->markAsRejected($reason);
+            
+            // Update document status to rejected
+            $lockedDoc->update(['status' => 'rejected']);
+            if (\Illuminate\Support\Facades\Schema::hasTable('verification_records')) {
+                $lockedDoc->verificationRecord?->update(['status' => 'rejected']);
+            }
+            
+            AuditLog::log(
+                'reject',
+                "Dokumen '{$lockedDoc->title}' ditolak oleh {$signer->name}. Alasan: {$reason}",
+                $signer->id,
+                $lockedDoc->id,
+                ['reason' => $reason]
+            );
+        });
     }
 }

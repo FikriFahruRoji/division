@@ -19,14 +19,7 @@ return new class extends Migration
             $table->string('doc_type'); // Surat Keputusan, Memo, Surat Keterangan, dll
             $table->string('unit'); // Unit/Bagian penghasil dokumen
             $table->string('classification')->default('biasa'); // Biasa, Terbatas, Rahasia
-            $table->enum('status', [
-                'draft',
-                'submitted',
-                'pending_signature',
-                'signed_valid',
-                'superseded',
-                'revoked'
-            ])->default('draft');
+            $table->string('status', 30)->default('draft');
             $table->integer('version')->default(1);
             $table->foreignId('creator_id')->constrained('users')->onDelete('restrict');
             $table->foreignId('parent_id')->nullable()->constrained('documents')->onDelete('set null'); // For versioning

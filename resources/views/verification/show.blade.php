@@ -40,8 +40,16 @@
                         <p class="text-white/80 mt-1">Dokumen ini sah dan berlaku</p>
                     @elseif($result['status'] === 'superseded')
                         <p class="text-white/80 mt-1">Dokumen ini telah digantikan versi baru</p>
-                    @else
+                    @elseif($result['status'] === 'draft')
+                        <p class="text-white/80 mt-1">Dokumen ini masih berstatus draft</p>
+                    @elseif($result['status'] === 'pending')
+                        <p class="text-white/80 mt-1">Dokumen ini sedang dalam proses penandatanganan</p>
+                    @elseif($result['status'] === 'rejected')
+                        <p class="text-white/80 mt-1">Dokumen ini telah ditolak</p>
+                    @elseif($result['status'] === 'revoked')
                         <p class="text-white/80 mt-1">Dokumen ini telah dicabut</p>
+                    @else
+                        <p class="text-white/80 mt-1">Dokumen ini tidak valid atau integritas berkas tidak sesuai</p>
                     @endif
                 </div>
 
@@ -58,6 +66,12 @@
                                 <dt class="text-sm text-gray-500">Nama Dokumen</dt>
                                 <dd class="text-sm font-medium text-gray-900 text-right max-w-[60%]">{{ $result['document']['title'] }}</dd>
                             </div>
+                            @if(!empty($result['document']['summary']))
+                            <div class="py-2.5 border-b border-gray-100">
+                                <dt class="text-sm text-gray-500 mb-1.5">Ringkasan Dokumen</dt>
+                                <dd class="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg whitespace-pre-line leading-relaxed">{{ $result['document']['summary'] }}</dd>
+                            </div>
+                            @endif
                             <div class="flex justify-between py-2 border-b border-gray-100">
                                 <dt class="text-sm text-gray-500">Tanggal Dokumen</dt>
                                 <dd class="text-sm font-medium text-gray-900">{{ $result['document']['doc_date'] }}</dd>
@@ -166,8 +180,16 @@
                         <p class="mt-1 text-sm text-yellow-700">
                             @if($result['status'] === 'superseded')
                                 Dokumen ini sudah tidak berlaku karena telah digantikan dengan versi yang lebih baru: v{{ $result['document']['version'] }}.
-                            @else
+                            @elseif($result['status'] === 'draft')
+                                Dokumen ini masih berupa draf awal dan belum ditandatangani secara sah.
+                            @elseif($result['status'] === 'pending')
+                                Dokumen ini masih menunggu proses persetujuan dan tanda tangan para pihak terkait.
+                            @elseif($result['status'] === 'rejected')
+                                Dokumen ini telah ditolak dalam proses penandatanganan dan tidak berlaku.
+                            @elseif($result['status'] === 'revoked')
                                 Dokumen ini sudah tidak berlaku karena telah dicabut oleh pihak yang berwenang.
+                            @else
+                                Dokumen ini tidak valid karena integritas berkas fisik tidak sesuai dengan catatan sistem.
                             @endif
                         </p>
                     </div>

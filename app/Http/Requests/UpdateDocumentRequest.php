@@ -62,19 +62,24 @@ class UpdateDocumentRequest extends FormRequest
                 'in:biasa,terbatas,rahasia',
             ],
             'sign_mode' => [
-                'required',
-                'in:single,sequential,parallel',
+                'nullable',
+                'string',
+                'in:single',
             ],
             'notes' => [
                 'nullable',
                 'string',
                 'max:1000',
             ],
+            'summary' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
             'signers' => [
                 'required',
                 'array',
-                'min:1',
-                'max:10',
+                'size:1',
             ],
             'signers.*' => [
                 'integer',
@@ -112,7 +117,8 @@ class UpdateDocumentRequest extends FormRequest
             'title.regex' => 'Judul hanya boleh berisi huruf, angka, dan karakter dasar.',
             'doc_number.regex' => 'Nomor dokumen hanya boleh berisi huruf, angka, tanda hubung, garis bawah, titik, dan garis miring.',
             'doc_date.before_or_equal' => 'Tanggal dokumen tidak boleh lebih dari hari ini.',
-            'signers.max' => 'Maksimal 10 penandatangan yang dapat ditambahkan.',
+            'sign_mode.in' => 'Saat ini sistem hanya mendukung mode tanda tangan single.',
+            'signers.size' => 'Saat ini hanya dapat memilih 1 orang penandatangan.',
         ];
     }
 
@@ -126,7 +132,9 @@ class UpdateDocumentRequest extends FormRequest
             'doc_number' => trim($this->doc_number ?? ''),
             'doc_type' => trim($this->doc_type ?? ''),
             'unit' => trim($this->unit ?? ''),
+            'sign_mode' => 'single',
             'notes' => $this->notes ? trim($this->notes) : null,
+            'summary' => $this->summary ? trim($this->summary) : null,
         ]);
     }
 }

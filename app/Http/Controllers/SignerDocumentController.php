@@ -36,6 +36,7 @@ class SignerDocumentController extends Controller
             'doc_type' => 'required|string|max:100',
             'unit' => 'required|string|max:100',
             'notes' => 'nullable|string|max:1000',
+            'summary' => 'nullable|string|max:2000',
         ]);
 
         $user = auth()->user();

@@ -86,7 +86,10 @@ class UserController extends Controller
         
         $validated['password'] = Hash::make($validated['password']);
         
-        User::create($validated);
+        $user = User::create($validated);
+
+        // RA-15: Send email verification notification automatically to newly created user
+        $user->sendEmailVerificationNotification();
         
         return redirect()
             ->route('users.index')

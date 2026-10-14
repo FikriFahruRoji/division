@@ -132,6 +132,12 @@
                         <dt class="font-medium text-text-secondary text-xs uppercase tracking-wider mb-1">Fingerprint</dt>
                         <dd class="text-text-main dark:text-white font-mono text-xs bg-white dark:bg-zinc-800 px-3 py-2 rounded inline-block">{{ $document->fingerprint }}</dd>
                     </div>
+                    @if($document->summary)
+                    <div class="md:col-span-2 bg-background-light dark:bg-zinc-700 rounded-lg p-4">
+                        <dt class="font-medium text-text-secondary text-xs uppercase tracking-wider mb-1">Ringkasan Dokumen</dt>
+                        <dd class="text-text-main dark:text-white whitespace-pre-line leading-relaxed">{{ $document->summary }}</dd>
+                    </div>
+                    @endif
                     @if($document->notes)
                     <div class="md:col-span-2 bg-background-light dark:bg-zinc-700 rounded-lg p-4">
                         <dt class="font-medium text-text-secondary text-xs uppercase tracking-wider mb-1">Catatan</dt>

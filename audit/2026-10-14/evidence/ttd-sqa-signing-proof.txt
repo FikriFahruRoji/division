@@ -1,2 +1,0 @@
-{"stage":"one","byte_range_count":1,"signature_A_name_present":true,"signature_B_name_present":false}
-{"stage":"two","byte_range_count":1,"signature_A_name_present":false,"signature_B_name_present":true}

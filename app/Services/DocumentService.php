@@ -69,6 +69,7 @@ class DocumentService
             'fingerprint' => $fingerprint,
             'sign_mode' => $metadata['sign_mode'] ?? 'single',
             'notes' => $metadata['notes'] ?? null,
+            'summary' => $metadata['summary'] ?? null,
         ]);
         
         // Create verification record

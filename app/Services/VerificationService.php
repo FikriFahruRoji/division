@@ -69,41 +69,47 @@ class VerificationService
             ['token_prefix' => $tokenPrefix, 'status' => $computedStatus]
         );
 
-        // SEC-03: Minimum public verification information:
-        // Do not leak secret/confidential document titles to unauthenticated public
-        $isPublic = !auth()->check();
+        // RA-01 / SEC-03: Strict confidential metadata masking:
+        // Mask confidential documents from unauthorized viewers (both guests and logged-in users without view policy)
+        $viewer = auth()->user();
+        $canView = $viewer && $viewer->isActive() && $viewer->can('view', $document);
         $isConfidential = in_array($document->classification, ['rahasia', 'sangat_rahasia']);
+        $maskConfidential = $isConfidential && !$canView;
+
+        $docTitle = $maskConfidential ? 'Dokumen Terbatas' : $document->title;
+        $docNumber = $maskConfidential ? '*** (Dirahasiakan)' : $document->doc_number;
+        $docUnit = $maskConfidential ? '*** (Dirahasiakan)' : $document->unit;
+        $docSummary = $maskConfidential ? '*** (Dirahasiakan)' : $document->summary;
         
-        $publicTitle = ($isPublic && $isConfidential) 
-            ? 'Dokumen Terbatas' 
-            : $document->title;
-        
+        $signers = $maskConfidential ? collect() : $document->signerAssignments()
+            ->with('signer:id,name,position,nip_nidn')
+            ->get()
+            ->map(fn($a) => [
+                'name' => $a->signer->name,
+                'position' => $a->signer->position,
+                'nip_nidn' => $a->signer->nip_nidn,
+                'status' => $a->status,
+                'signed_at' => $a->signed_at?->format('d F Y H:i'),
+            ]);
+
         return [
             'status' => $computedStatus,
             'fingerprint' => $record->fingerprint,
             'document' => [
                 'id' => $document->id,
-                'doc_number' => $document->doc_number,
-                'title' => $publicTitle,
+                'doc_number' => $docNumber,
+                'title' => $docTitle,
+                'summary' => $docSummary,
                 'doc_date' => $document->doc_date ? $document->doc_date->format('d F Y') : null,
                 'doc_type' => $document->doc_type,
-                'unit' => $document->unit,
+                'unit' => $docUnit,
                 'classification' => $document->classification,
                 'version' => $document->version,
                 'signed_at' => ($computedStatus === 'valid' && $document->isSignedValid()) 
                     ? $document->signatures()->latest()->first()?->created_at?->format('d F Y H:i') 
                     : null,
             ],
-            'signers' => $document->signerAssignments()
-                ->with('signer:id,name,position,nip_nidn')
-                ->get()
-                ->map(fn($a) => [
-                    'name' => $a->signer->name,
-                    'position' => $a->signer->position,
-                    'nip_nidn' => $a->signer->nip_nidn,
-                    'status' => $a->status,
-                    'signed_at' => $a->signed_at?->format('d F Y H:i'),
-                ]),
+            'signers' => $signers,
             'access_count' => $record->access_count,
             'last_accessed_at' => $record->last_accessed_at?->format('d F Y H:i'),
         ];

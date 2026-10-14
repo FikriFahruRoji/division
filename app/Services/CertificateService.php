@@ -8,6 +8,55 @@ use Illuminate\Support\Facades\Storage;
 class CertificateService
 {
     /**
+     * Get or generate the system seal certificate (RA-04).
+     * Returns an array with paths to the system seal private key and certificate.
+     */
+    public function getSystemCertificate(): array
+    {
+        $certPath = "certificates/system_seal.crt";
+        $keyPath = "certificates/system_seal.key";
+        
+        if (!Storage::exists($certPath) || !Storage::exists($keyPath)) {
+            $this->generateSystemCertificate();
+        }
+        
+        return [
+            'cert' => Storage::path($certPath),
+            'key' => Storage::path($keyPath),
+        ];
+    }
+
+    /**
+     * Generate self-signed certificate for system seal.
+     */
+    protected function generateSystemCertificate(): void
+    {
+        $privKey = openssl_pkey_new([
+            "private_key_bits" => 2048,
+            "private_key_type" => OPENSSL_KEYTYPE_RSA,
+        ]);
+        
+        $dn = [
+            "commonName" => config('app.name', 'TTD Digital') . " System Seal",
+            "emailAddress" => "noreply@uniga.ac.id",
+            "organizationName" => "DigitalSign Authority",
+            "organizationalUnitName" => "Institutional Document Certification Authority",
+            "countryName" => "ID"
+        ];
+        
+        $csr = openssl_csr_new($dn, $privKey, ["digest_alg" => "sha256"]);
+        $serial = (int) (microtime(true) * 1000) + random_int(1000, 9999);
+        $sscert = openssl_csr_sign($csr, null, $privKey, 365 * 3, ["digest_alg" => "sha256"], $serial);
+        
+        openssl_x509_export($sscert, $certout);
+        openssl_pkey_export($privKey, $pkeyout);
+        
+        Storage::makeDirectory('certificates');
+        Storage::put("certificates/system_seal.crt", $certout);
+        Storage::put("certificates/system_seal.key", $pkeyout);
+    }
+
+    /**
      * Get or generate a certificate for the user.
      * Returns an array with paths to the private key and certificate.
      */

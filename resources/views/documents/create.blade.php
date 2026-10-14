@@ -98,22 +98,11 @@
                         </div>
                     </div>
                     
-                    <!-- Sign Mode -->
-                    <div>
-                        <label for="sign_mode" class="block text-sm font-medium text-text-main dark:text-white mb-2">
-                            Mode Tanda Tangan <span class="text-red-500">*</span>
-                        </label>
-                        <select name="sign_mode" id="sign_mode" required
-                            class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="single" {{ old('sign_mode') == 'single' ? 'selected' : '' }}>Single (1 penandatangan)</option>
-                            <option value="sequential" {{ old('sign_mode') == 'sequential' ? 'selected' : '' }}>Sequential (berurutan)</option>
-                            <option value="parallel" {{ old('sign_mode') == 'parallel' ? 'selected' : '' }}>Parallel (bersamaan)</option>
-                        </select>
-                        <p class="mt-1 text-xs text-text-secondary">Sequential: tanda tangan berurutan. Parallel: semua bisa tanda tangan bersamaan.</p>
-                    </div>
+                    <!-- Sign Mode (Default Single) -->
+                    <input type="hidden" name="sign_mode" value="single">
                     
                     <!-- Signers -->
-                    <div x-data="{ selectedDept: '' }">
+                    <div x-data="{ selectedDept: '', selectedSigner: '{{ old('signers.0', '') }}' }">
                         <label class="block text-sm font-medium text-text-main dark:text-white mb-2">
                             Penandatangan <span class="text-red-500">*</span>
                         </label>
@@ -122,21 +111,22 @@
                         <div class="mb-4">
                             <select x-model="selectedDept" 
                                 class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary">
-                                <option value="">-- Pilih Departemen --</option>
+                                <option value="">-- Semua Departemen --</option>
                                 @foreach($departments as $dept)
                                 <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code }})</option>
                                 @endforeach
                             </select>
                         </div>
 
-                        <p class="text-xs text-text-secondary mb-3">Pilih satu atau lebih penandatangan. Gunakan filter departemen untuk mencari nama.</p>
+                        <p class="text-xs text-text-secondary mb-3">Pilih 1 orang pejabat penandatangan dokumen.</p>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto bg-background-light dark:bg-zinc-700 rounded-lg p-3">
                             @foreach($signers as $signer)
                             <label x-show="selectedDept === '' || selectedDept == '{{ $signer->department_id }}'" 
-                                class="flex items-center p-3 rounded-lg bg-white dark:bg-zinc-800 border border-border-color dark:border-zinc-600 hover:border-primary cursor-pointer transition-colors">
-                                <input type="checkbox" name="signers[]" value="{{ $signer->id }}" 
-                                    class="rounded border-border-color text-primary focus:ring-primary" 
+                                class="flex items-center p-3 rounded-lg bg-white dark:bg-zinc-800 border border-border-color dark:border-zinc-600 hover:border-primary cursor-pointer transition-colors"
+                                :class="{ 'border-primary ring-1 ring-primary bg-primary/5': selectedSigner == '{{ $signer->id }}' }">
+                                <input type="radio" name="signers[]" value="{{ $signer->id }}" x-model="selectedSigner"
+                                    class="border-border-color text-primary focus:ring-primary" 
                                     {{ in_array($signer->id, old('signers', [])) ? 'checked' : '' }}>
                                 <div class="ml-3">
                                     <span class="text-sm font-medium text-text-main dark:text-white">{{ $signer->name }}</span>
@@ -157,6 +147,16 @@
                         @error('signers')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
                     </div>
                     
+                    <!-- Summary -->
+                    <div>
+                        <label for="summary" class="block text-sm font-medium text-text-main dark:text-white mb-2">
+                            Ringkasan Dokumen
+                        </label>
+                        <textarea name="summary" id="summary" rows="3" placeholder="Ringkasan singkat isi atau substansi pokok dokumen..."
+                            class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary resize-none">{{ old('summary') }}</textarea>
+                        @error('summary')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
+                    </div>
+
                     <!-- Notes -->
                     <div>
                         <label for="notes" class="block text-sm font-medium text-text-main dark:text-white mb-2">
@@ -164,6 +164,7 @@
                         </label>
                         <textarea name="notes" id="notes" rows="3" placeholder="Catatan atau keterangan tambahan..."
                             class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary resize-none">{{ old('notes') }}</textarea>
+                        @error('notes')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
                     </div>
                 </div>
                 

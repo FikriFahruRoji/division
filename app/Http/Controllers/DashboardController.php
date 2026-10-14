@@ -30,15 +30,11 @@ class DashboardController extends Controller
                   ->orWhere(fn($sq) => $sq->whereNull('department_id')->whereHas('creator', fn($cq) => $cq->where('department_id', $user->department_id)));
             });
         } elseif ($user->isOperator()) {
-            // Operator sees only documents within their department, or own documents if no department
-            if ($user->department_id) {
-                $baseQuery->where(function ($q) use ($user) {
-                    $q->where('department_id', $user->department_id)
-                      ->orWhere(fn($sq) => $sq->whereNull('department_id')->whereHas('creator', fn($cq) => $cq->where('department_id', $user->department_id)));
-                });
-            } else {
-                $baseQuery->where('creator_id', $user->id);
-            }
+            // RA-02: Operator sees only own documents or documents explicitly assigned to them
+            $baseQuery->where(function ($q) use ($user) {
+                $q->where('creator_id', $user->id)
+                  ->orWhereHas('signerAssignments', fn($sq) => $sq->where('signer_id', $user->id));
+            });
         } else {
             // Signer sees only their documents
             $baseQuery->where(function ($q) use ($user) {
@@ -98,14 +94,11 @@ class DashboardController extends Controller
                   ->orWhere(fn($sq) => $sq->whereNull('department_id')->whereHas('creator', fn($cq) => $cq->where('department_id', $user->department_id)));
             });
         } elseif ($user->isOperator()) {
-            if ($user->department_id) {
-                $docsQuery->where(function ($q) use ($user) {
-                    $q->where('department_id', $user->department_id)
-                      ->orWhere(fn($sq) => $sq->whereNull('department_id')->whereHas('creator', fn($cq) => $cq->where('department_id', $user->department_id)));
-                });
-            } else {
-                $docsQuery->where('creator_id', $user->id);
-            }
+            // RA-02: Operator sees only own documents or documents explicitly assigned to them
+            $docsQuery->where(function ($q) use ($user) {
+                $q->where('creator_id', $user->id)
+                  ->orWhereHas('signerAssignments', fn($sq) => $sq->where('signer_id', $user->id));
+            });
         } else {
             $docsQuery->where(function ($q) use ($user) {
                 $q->where('creator_id', $user->id)

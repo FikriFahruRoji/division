@@ -91,11 +91,20 @@
 
 
 
+                <!-- Summary -->
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-text-main dark:text-white mb-2">Ringkasan Dokumen</label>
+                    <textarea name="summary" rows="3" placeholder="Ringkasan singkat isi atau substansi pokok dokumen..."
+                        class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary resize-none">{{ old('summary') }}</textarea>
+                    @error('summary')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
+                </div>
+
                 <!-- Notes -->
                 <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-text-main dark:text-white mb-2">Catatan</label>
                     <textarea name="notes" rows="3" placeholder="Catatan tambahan (opsional)"
                         class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary resize-none">{{ old('notes') }}</textarea>
+                    @error('notes')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
                 </div>
             </div>
 

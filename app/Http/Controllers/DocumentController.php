@@ -28,20 +28,35 @@ class DocumentController extends Controller
         $query = Document::with(['creator', 'signerAssignments.signer'])
             ->latest();
         
-        // Fix IDOR: Filter by department for regular admins/operators
-        if (!$user->isSuperAdmin()) {
+        // RA-02 / RA-03: Strict authorization-aligned document query scoping
+        if ($user->isSuperAdmin()) {
+            // Super admin sees all documents
+        } elseif ($user->role === 'admin') {
             if ($user->department_id) {
-                // Filter documents created by users in the same department
-                $query->whereHas('creator', function ($q) use ($user) {
-                    $q->where('department_id', $user->department_id);
+                // RA-03: Filter strictly by persisted document department_id (with fallback for legacy records)
+                $query->where(function ($q) use ($user) {
+                    $q->where('department_id', $user->department_id)
+                      ->orWhere(fn($sq) => $sq->whereNull('department_id')->whereHas('creator', fn($cq) => $cq->where('department_id', $user->department_id)));
                 });
-            } elseif ($user->role === 'signer') {
-                // Signers handled by policy/query below, but ensuring they don't see random docs
-                // Handled in separate controller usually, but good to be safe
-            } elseif ($user->role === 'admin' || $user->role === 'operator') {
-                // Admin/Operator without department shouldn't see anything (edge case)
+            } else {
                 $query->whereRaw('1 = 0');
             }
+        } elseif ($user->isOperator()) {
+            // RA-02: Operator sees only their own documents or explicit assignments
+            $query->where(function ($q) use ($user) {
+                $q->where('creator_id', $user->id)
+                  ->orWhereHas('signerAssignments', function ($sq) use ($user) {
+                      $sq->where('signer_id', $user->id);
+                  });
+            });
+        } else {
+            // Signer sees only documents they created or are assigned to sign
+            $query->where(function ($q) use ($user) {
+                $q->where('creator_id', $user->id)
+                  ->orWhereHas('signerAssignments', function ($sq) use ($user) {
+                      $sq->where('signer_id', $user->id);
+                  });
+            });
         }
         
         // Filter by status
@@ -184,16 +199,21 @@ class DocumentController extends Controller
      */
     public function finalize(Document $document)
     {
-        $this->authorize('finalize', $document);
+        $freshDoc = $document->fresh();
+        $this->authorize('finalize', $freshDoc);
         
-        if ($document->signerAssignments()->count() === 0) {
+        if ($freshDoc->signerAssignments()->count() === 0) {
             return back()->with('error', 'Dokumen harus memiliki minimal satu penandatangan.');
         }
-        
-        $this->signingService->finalizeDocument($document);
+
+        try {
+            $this->signingService->finalizeDocument($freshDoc);
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
         
         return redirect()
-            ->route('documents.show', $document)
+            ->route('documents.show', $freshDoc)
             ->with('success', 'Dokumen berhasil difinalisasi dan siap untuk ditandatangani.');
     }
 
@@ -280,8 +300,11 @@ class DocumentController extends Controller
             ->where('status', 'active')
             ->with('department');
 
-        // Limit dropdown options to the user's own department for non-super-admin
-        if (!$user->isSuperAdmin() && $user->department_id) {
+        // RA-07: Limit dropdown options to the user's own department for non-super-admin (fail closed if null)
+        if (!$user->isSuperAdmin()) {
+            if (!$user->department_id) {
+                return [collect(), collect()];
+            }
             $signersQuery->where('department_id', $user->department_id);
             $departments = $departments->where('id', $user->department_id);
         }

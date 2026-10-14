@@ -1,1 +1,0 @@
-{"scenario":"two_interleaved_approvals_same_assignment","signature_rows":2,"signed_assignments":1,"document_status":"signed_valid","final_file":"outer.txt"}

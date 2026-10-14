@@ -34,6 +34,7 @@ class Document extends Model
         'qr_token',
         'sign_mode',
         'notes',
+        'summary',
     ];
 
     protected $casts = [
