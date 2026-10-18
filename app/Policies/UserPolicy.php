@@ -113,6 +113,17 @@ class UserPolicy
     /**
      * Determine whether the user can delete the model.
      */
+    /**
+     * Reset another user's two-factor authentication (e.g. lost phone).
+     * Users turn off their own 2FA from the profile page with a valid code instead.
+     */
+    public function resetTwoFactor(User $user, User $model): bool
+    {
+        return $user->id !== $model->id
+            && ($user->isSuperAdmin() || $user->isAdmin())
+            && $this->update($user, $model);
+    }
+
     public function delete(User $user, User $model): bool
     {
         if (!$user->isActive()) return false;

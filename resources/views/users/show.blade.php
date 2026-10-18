@@ -77,6 +77,22 @@
                     </p>
                 </div>
                 <div>
+                    <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">Autentikasi Dua Faktor</label>
+                    <div class="flex items-center gap-3">
+                        @if($user->hasTwoFactorEnabled())
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-green-100 text-green-700">Aktif</span>
+                            @can('resetTwoFactor', $user)
+                            <form method="POST" action="{{ route('users.two-factor.reset', $user) }}" onsubmit="return confirm('Reset autentikasi dua faktor pengguna ini? Pengguna harus mendaftarkan ulang aplikasi authenticator sebelum dapat menandatangani.')">
+                                @csrf
+                                <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">Reset</button>
+                            </form>
+                            @endcan
+                        @else
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600">Belum aktif</span>
+                        @endif
+                    </div>
+                </div>
+                <div>
                     <label class="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">Terdaftar Sejak</label>
                     <p class="text-sm font-medium text-text-main dark:text-white">
                         {{ $user->created_at ? $user->created_at->format('d F Y H:i') : '-' }}

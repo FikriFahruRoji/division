@@ -106,6 +106,17 @@ class UserFactory extends Factory
     }
 
     /**
+     * Confirmed TOTP second factor with a known test secret.
+     */
+    public function withTwoFactor(string $secret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'two_factor_secret' => $secret,
+            'two_factor_confirmed_at' => now(),
+        ]);
+    }
+
+    /**
      * Assign a department to the user.
      */
     public function withDepartment(int $departmentId): static

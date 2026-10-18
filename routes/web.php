@@ -45,6 +45,13 @@ Route::middleware(['auth', 'active', 'verified', 'throttle:web'])->group(functio
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Two-factor authentication (TOTP) - required for signing actions (T1)
+    Route::middleware(['throttle:signatures'])->group(function () {
+        Route::get('/two-factor', [\App\Http\Controllers\TwoFactorController::class, 'show'])->name('two-factor.show');
+        Route::post('/two-factor', [\App\Http\Controllers\TwoFactorController::class, 'store'])->name('two-factor.store');
+        Route::delete('/two-factor', [\App\Http\Controllers\TwoFactorController::class, 'destroy'])->name('two-factor.destroy');
+    });
     
     /*
     |----------------------------------------------------------------------
@@ -115,6 +122,7 @@ Route::middleware(['auth', 'active', 'verified', 'throttle:web'])->group(functio
     */
     Route::middleware(['role:admin'])->group(function () {
         Route::resource('users', UserController::class);
+        Route::post('/users/{user}/two-factor/reset', [UserController::class, 'resetTwoFactor'])->name('users.two-factor.reset');
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
         
         // Department management - super admin only (controller handles auth)

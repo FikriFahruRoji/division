@@ -152,9 +152,9 @@ class SigningService
     /**
      * Sign a document.
      */
-    public function signDocument(Document $document, User $signer, array $qrPosition = []): Signature
+    public function signDocument(Document $document, User $signer, array $qrPosition = [], ?string $authMethod = null): Signature
     {
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($document, $signer, $qrPosition) {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($document, $signer, $qrPosition, $authMethod) {
             // Lock document and assignment for update (SEC-09)
             $lockedDoc = Document::where('id', $document->id)->lockForUpdate()->firstOrFail();
             
@@ -222,6 +222,7 @@ class SigningService
                 'signed_hash' => $newHash,
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
+                'auth_method' => $authMethod,
             ]);
             
             // Update document with new signed file path
@@ -263,7 +264,7 @@ class SigningService
                 "Dokumen '{$lockedDoc->title}' ditandatangani oleh {$signer->name}",
                 $signer->id,
                 $lockedDoc->id,
-                ['signer_position' => $signer->position, 'qr_position' => $qrPosition]
+                ['signer_position' => $signer->position, 'qr_position' => $qrPosition, 'auth_method' => $authMethod]
             );
             
             return $signature;
@@ -437,10 +438,10 @@ class SigningService
     /**
      * Reject a document signing.
      */
-    public function rejectDocument(Document $document, User $signer, string $reason): void
+    public function rejectDocument(Document $document, User $signer, string $reason, ?string $authMethod = null): void
     {
         // RA-11: Atomic transactional rejection with row locking
-        \Illuminate\Support\Facades\DB::transaction(function () use ($document, $signer, $reason) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($document, $signer, $reason, $authMethod) {
             $lockedDoc = Document::where('id', $document->id)->lockForUpdate()->firstOrFail();
             $assignment = $lockedDoc->signerAssignments()
                 ->where('signer_id', $signer->id)
@@ -465,7 +466,7 @@ class SigningService
                 "Dokumen '{$lockedDoc->title}' ditolak oleh {$signer->name}. Alasan: {$reason}",
                 $signer->id,
                 $lockedDoc->id,
-                ['reason' => $reason]
+                ['reason' => $reason, 'auth_method' => $authMethod]
             );
         });
     }

@@ -20,6 +20,7 @@ class Signature extends Model
         'signed_hash',
         'ip_address',
         'user_agent',
+        'auth_method',
     ];
 
     /**

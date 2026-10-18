@@ -49,7 +49,11 @@ target akhir **TTE tersertifikasi** melalui PSrE yang diakui Komdigi.
 
 Tujuan: menutup celah paling berbahaya sekarang, dan menyiapkan fondasi untuk Fase 2.
 
-### T1. Autentikasi ulang saat menandatangani (G4)
+### T1. Autentikasi ulang saat menandatangani (G4) ✅ Selesai 2026-10-19
+> Dipilih TOTP (RFC 6238), bukan OTP email: login Google + OTP ke Gmail yang sama hanya satu faktor.
+> Approve & reject wajib kode 6 digit; kode sekali pakai (anti-replay per time-step), maks. 5 salah per 5 menit.
+> Secret terenkripsi di DB; `signatures.auth_method` dan audit log mencatat `totp`; admin dapat mereset 2FA user di departemennya.
+> Belum: 2FA saat login (baru diwajibkan saat aksi tanda tangan), kode cadangan (recovery codes).
 - Tambahkan TOTP 2FA (wajib untuk role `signer` dan `admin`) **atau** OTP email/WA berumur pendek di halaman approve.
 - Langkah approve dan reject wajib memasukkan OTP. Simpan metode autentikasi di `signatures.metadata` dan audit log.
 - **Selesai jika:** POST `signatures.approve` tanpa OTP valid ditolak (ada test), OTP sekali pakai dan kedaluwarsa ≤ 5 menit.

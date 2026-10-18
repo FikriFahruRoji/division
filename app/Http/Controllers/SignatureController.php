@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Services\SigningService;
+use App\Services\TwoFactorService;
 use Illuminate\Http\Request;
 
 class SignatureController extends Controller
 {
     public function __construct(
-        protected SigningService $signingService
+        protected SigningService $signingService,
+        protected TwoFactorService $twoFactor
     ) {}
 
     /**
@@ -62,7 +64,9 @@ class SignatureController extends Controller
             $canSign = $nextSigner && $nextSigner->signer_id === $user->id;
         }
         
-        return view('signatures.show', compact('document', 'assignment', 'canSign'));
+        $needsTwoFactor = $canSign && !$user->hasTwoFactorEnabled();
+
+        return view('signatures.show', compact('document', 'assignment', 'canSign', 'needsTwoFactor'));
     }
 
     /**
@@ -73,6 +77,13 @@ class SignatureController extends Controller
         $this->authorize('sign', $document);
         
         $user = auth()->user();
+
+        // T1: signing must be confirmed with a fresh TOTP code
+        if ($redirect = $this->requireTwoFactor($document)) {
+            return $redirect;
+        }
+        $request->validate(['otp' => 'required|digits:6']);
+        $this->twoFactor->verify($user, $request->input('otp'));
         
         // Get QR position from request
         $qrPosition = [
@@ -83,7 +94,7 @@ class SignatureController extends Controller
         ];
         
         try {
-            $this->signingService->signDocument($document, $user, $qrPosition);
+            $this->signingService->signDocument($document, $user, $qrPosition, 'totp');
             
             $freshDoc = $document->fresh();
             if ($freshDoc->isSignedValid()) {
@@ -107,14 +118,20 @@ class SignatureController extends Controller
     {
         $this->authorize('sign', $document);
         
+        if ($redirect = $this->requireTwoFactor($document)) {
+            return $redirect;
+        }
+
         $validated = $request->validate([
             'reason' => 'required|string|max:500',
+            'otp' => 'required|digits:6',
         ]);
         
         $user = auth()->user();
+        $this->twoFactor->verify($user, $validated['otp']);
         
         try {
-            $this->signingService->rejectDocument($document, $user, $validated['reason']);
+            $this->signingService->rejectDocument($document, $user, $validated['reason'], 'totp');
             
             return redirect()
                 ->route('signatures.pending')
@@ -122,6 +139,22 @@ class SignatureController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Send users without a confirmed second factor to enrollment first.
+     */
+    protected function requireTwoFactor(Document $document)
+    {
+        if (auth()->user()->hasTwoFactorEnabled()) {
+            return null;
+        }
+
+        session()->put('two_factor_intended', route('signatures.show', $document));
+
+        return redirect()
+            ->route('two-factor.show')
+            ->with('error', 'Aktifkan autentikasi dua faktor terlebih dahulu sebelum menandatangani atau menolak dokumen.');
     }
 
     /**

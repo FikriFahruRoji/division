@@ -109,6 +109,20 @@ class UserController extends Controller
     }
 
     /**
+     * Reset a user's two-factor authentication so they can enroll a new device (T1).
+     */
+    public function resetTwoFactor(User $user, \App\Services\TwoFactorService $twoFactor)
+    {
+        $this->authorize('resetTwoFactor', $user);
+
+        $twoFactor->disable($user, auth()->user());
+
+        return redirect()
+            ->route('users.show', $user)
+            ->with('success', "Autentikasi dua faktor {$user->name} direset. Pengguna harus mengaktifkannya kembali sebelum menandatangani.");
+    }
+
+    /**
      * Show the form for editing the specified user.
      */
     public function edit(User $user)

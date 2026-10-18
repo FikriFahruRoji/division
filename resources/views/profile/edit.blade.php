@@ -47,6 +47,26 @@
         </div>
     </div>
 
+    <!-- Two-Factor Authentication -->
+    <div class="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-border-color dark:border-zinc-700 overflow-hidden">
+        <div class="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="text-lg font-bold text-text-main dark:text-white mb-1">Autentikasi Dua Faktor</h3>
+                <p class="text-sm text-text-secondary">
+                    @if(auth()->user()->hasTwoFactorEnabled())
+                        <span class="text-green-600 font-medium">Aktif.</span> Kode authenticator diminta setiap kali Anda menandatangani dokumen.
+                    @else
+                        <span class="text-red-500 font-medium">Belum aktif.</span> Wajib diaktifkan sebelum Anda dapat menandatangani atau menolak dokumen.
+                    @endif
+                </p>
+            </div>
+            <a href="{{ route('two-factor.show') }}" class="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-hover rounded-lg text-text-main text-sm font-semibold transition-colors">
+                <span class="material-symbols-outlined text-lg">verified_user</span>
+                Kelola
+            </a>
+        </div>
+    </div>
+
     <!-- Update Password -->
     <div class="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-border-color dark:border-zinc-700 overflow-hidden">
         <div class="p-6">
