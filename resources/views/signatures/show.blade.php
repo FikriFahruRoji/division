@@ -99,6 +99,20 @@
                     <span class="material-symbols-outlined text-primary">task_alt</span>
                     Tindakan
                 </h4>
+                @if($needsTwoFactor)
+                <div class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <p class="text-sm text-red-700 dark:text-red-300 mb-2">Autentikasi dua faktor wajib aktif sebelum Anda dapat menandatangani atau menolak dokumen.</p>
+                    <a href="{{ route('two-factor.show') }}" class="inline-flex items-center gap-1 text-sm font-semibold text-red-700 dark:text-red-300 underline">
+                        <span class="material-symbols-outlined text-base">verified_user</span>
+                        Aktifkan sekarang
+                    </a>
+                </div>
+                @endif
+                @error('otp')
+                <div class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <p class="text-sm text-red-700 dark:text-red-300">{{ $message }}</p>
+                </div>
+                @enderror
                 <div class="space-y-4">
                     <!-- QR Size Control -->
                     <div>
@@ -110,13 +124,13 @@
                         </div>
                     </div>
 
-                    <button type="button" id="btn-sign" 
-                        class="w-full flex justify-center items-center gap-2 px-4 py-3 bg-green-500 hover:bg-green-600 rounded-lg font-semibold text-sm text-white transition-colors">
+                    <button type="button" id="btn-sign" @disabled($needsTwoFactor)
+                        class="disabled:opacity-50 disabled:cursor-not-allowed w-full flex justify-center items-center gap-2 px-4 py-3 bg-green-500 hover:bg-green-600 rounded-lg font-semibold text-sm text-white transition-colors">
                         <span class="material-symbols-outlined">draw</span>
                         Tandatangani
                     </button>
-                    <button type="button" onclick="document.getElementById('reject-modal').classList.remove('hidden')" 
-                        class="w-full flex justify-center items-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 rounded-lg font-semibold text-sm text-white transition-colors">
+                    <button type="button" @disabled($needsTwoFactor) onclick="document.getElementById('reject-modal').classList.remove('hidden'); document.getElementById('reject-otp').focus()" 
+                        class="disabled:opacity-50 disabled:cursor-not-allowed w-full flex justify-center items-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 rounded-lg font-semibold text-sm text-white transition-colors">
                         <span class="material-symbols-outlined">close</span>
                         Tolak
                     </button>
@@ -254,6 +268,11 @@
             <input type="hidden" name="qr_x" id="input-qr-x" value="">
             <input type="hidden" name="qr_y" id="input-qr-y" value="">
             <input type="hidden" name="qr_width" id="input-qr-width" value="30">
+            <div class="mb-4">
+                <label for="sign-otp" class="block text-sm font-medium text-text-main dark:text-white mb-2">Kode authenticator (6 digit)</label>
+                <input type="text" name="otp" id="sign-otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required
+                    class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white text-center text-lg tracking-[0.4em] focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
             <div class="flex justify-end gap-3">
                 <button type="button" onclick="document.getElementById('sign-modal').classList.add('hidden')" 
                     class="px-4 py-2.5 bg-white dark:bg-zinc-700 border border-border-color dark:border-zinc-600 rounded-lg text-sm font-medium text-text-main dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-600 transition-colors">
@@ -268,7 +287,7 @@
 </div>
 
 <!-- Reject Modal -->
-<div id="reject-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+<div id="reject-modal" class="{{ old('reason') ? '' : 'hidden' }} fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
     <div class="bg-white dark:bg-zinc-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
         <div class="flex items-center gap-4 mb-4">
             <div class="size-12 rounded-full bg-red-100 flex items-center justify-center">
@@ -281,7 +300,16 @@
             <div class="mb-4">
                 <label for="reason" class="block text-sm font-medium text-text-main dark:text-white mb-2">Alasan Penolakan</label>
                 <textarea name="reason" id="reason" rows="3" required placeholder="Jelaskan alasan penolakan..."
-                    class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"></textarea>
+                    class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 resize-none">{{ old('reason') }}</textarea>
+                @error('reason')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
+            </div>
+            <div class="mb-4">
+                <label for="reject-otp" class="block text-sm font-medium text-text-main dark:text-white mb-2">Kode authenticator (6 digit)</label>
+                <input type="text" name="otp" id="reject-otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required
+                    class="w-full px-4 py-2.5 border-none rounded-lg bg-background-light dark:bg-zinc-700 text-text-main dark:text-white text-center text-lg tracking-[0.4em] focus:outline-none focus:ring-2 focus:ring-red-500">
+                @if(old('reason'))
+                    @error('otp')<p class="mt-1 text-sm text-red-500">{{ $message }}</p>@enderror
+                @endif
             </div>
             <div class="flex justify-end gap-3">
                 <button type="button" onclick="document.getElementById('reject-modal').classList.add('hidden')" 
@@ -549,6 +577,7 @@
             
             // Show modal
             document.getElementById('sign-modal').classList.remove('hidden');
+            document.getElementById('sign-otp').focus();
         });
 
 

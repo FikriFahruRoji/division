@@ -166,7 +166,7 @@ class DocumentSigningTest extends TestCase
     /** @test */
     public function assigned_signer_can_reject_document(): void
     {
-        $signer = User::factory()->signer()->create();
+        $signer = User::factory()->signer()->withTwoFactor()->create();
         $doc = Document::factory()->pendingSignature()->create();
 
         SignerAssignment::factory()->create([
@@ -179,6 +179,7 @@ class DocumentSigningTest extends TestCase
         $this->actingAs($signer)
             ->post(route('signatures.reject', $doc), [
                 'reason' => 'Dokumen perlu direvisi lebih lanjut.',
+                'otp' => $this->totp($signer),
             ])
             ->assertRedirect(route('signatures.pending'))
             ->assertSessionHas('success');
@@ -199,7 +200,7 @@ class DocumentSigningTest extends TestCase
     /** @test */
     public function rejection_requires_reason(): void
     {
-        $signer = User::factory()->signer()->create();
+        $signer = User::factory()->signer()->withTwoFactor()->create();
         $doc = Document::factory()->pendingSignature()->create();
 
         SignerAssignment::factory()->create([
