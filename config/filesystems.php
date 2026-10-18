@@ -33,7 +33,8 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Private disk holds documents and the seal key; never expose it via /storage/{path}.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

@@ -286,18 +286,18 @@ class SigningService
         
         // Digital Signature Configuration (System Seal)
         $info = array(
-            'Name' => config('app.name', 'TTD Digital') . ' System Seal',
-            'Location' => 'DigitalSign Authority',
-            'Reason' => "Segel Digital Sistem: Disetujui secara sah oleh {$signer->name}",
+            'Name' => config('app.name', 'TTD Digital') . ' Segel Sistem Internal',
+            'Location' => config('app.name', 'TTD Digital'),
+            'Reason' => "Segel sistem internal (tidak tersertifikasi PSrE): disetujui oleh {$signer->name}",
             'ContactInfo' => config('mail.from.address', 'noreply@uniga.ac.id'),
         );
-        
+
         // Load certificate and key content
         $certContent = file_get_contents($certPaths['cert']);
         $keyContent = file_get_contents($certPaths['key']);
-        
-        // Set document signature
-        $pdf->setSignature($certContent, $keyContent, '', '', 2, $info);
+
+        // Set document signature (key is encrypted at rest, unlocked with the seal passphrase)
+        $pdf->setSignature($certContent, $keyContent, $certPaths['passphrase'], '', 2, $info);
         
         $pageCount = $pdf->setSourceFile($sourcePath);
         

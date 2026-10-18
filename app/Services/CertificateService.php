@@ -2,119 +2,165 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class CertificateService
 {
     /**
-     * Get or generate the system seal certificate (RA-04).
-     * Returns an array with paths to the system seal private key and certificate.
+     * Get the system seal certificate (RA-04), generating it on first use.
+     * Returns the cert/key paths plus the passphrase that unlocks the key.
      */
     public function getSystemCertificate(): array
     {
-        $certPath = "certificates/system_seal.crt";
-        $keyPath = "certificates/system_seal.key";
-        
+        $passphrase = $this->passphrase();
+        $certPath = config('signing.seal.cert_path');
+        $keyPath = config('signing.seal.key_path');
+
         if (!Storage::exists($certPath) || !Storage::exists($keyPath)) {
-            $this->generateSystemCertificate();
+            $this->generateSystemCertificate($passphrase);
         }
-        
+
+        $this->assertKeyUsable(Storage::get($keyPath), $passphrase);
+
         return [
             'cert' => Storage::path($certPath),
             'key' => Storage::path($keyPath),
+            'passphrase' => $passphrase,
         ];
     }
 
     /**
-     * Generate self-signed certificate for system seal.
+     * Archive the current certificate, destroy its private key and issue a new seal.
+     * The old certificate is kept so documents sealed with it can still be checked.
      */
-    protected function generateSystemCertificate(): void
+    public function rotateSystemCertificate(): array
     {
-        $privKey = openssl_pkey_new([
-            "private_key_bits" => 2048,
-            "private_key_type" => OPENSSL_KEYTYPE_RSA,
-        ]);
-        
-        $dn = [
-            "commonName" => config('app.name', 'TTD Digital') . " System Seal",
-            "emailAddress" => "noreply@uniga.ac.id",
-            "organizationName" => "DigitalSign Authority",
-            "organizationalUnitName" => "Institutional Document Certification Authority",
-            "countryName" => "ID"
+        $passphrase = $this->passphrase();
+        $certPath = config('signing.seal.cert_path');
+        $keyPath = config('signing.seal.key_path');
+
+        $archived = null;
+        if (Storage::exists($certPath)) {
+            $old = $this->describe(Storage::get($certPath));
+            $archived = config('signing.seal.archive_dir') . "/system_seal_{$old['serial']}_" . now()->format('YmdHis') . '.crt';
+            Storage::move($certPath, $archived);
+        }
+
+        Storage::delete($keyPath);
+
+        $this->generateSystemCertificate($passphrase);
+
+        return [
+            'archived' => $archived,
+            'current' => $this->describe(Storage::get($certPath)),
         ];
-        
-        $csr = openssl_csr_new($dn, $privKey, ["digest_alg" => "sha256"]);
-        $serial = (int) (microtime(true) * 1000) + random_int(1000, 9999);
-        $sscert = openssl_csr_sign($csr, null, $privKey, 365 * 3, ["digest_alg" => "sha256"], $serial);
-        
-        openssl_x509_export($sscert, $certout);
-        openssl_pkey_export($privKey, $pkeyout);
-        
-        Storage::makeDirectory('certificates');
-        Storage::put("certificates/system_seal.crt", $certout);
-        Storage::put("certificates/system_seal.key", $pkeyout);
     }
 
     /**
-     * Get or generate a certificate for the user.
-     * Returns an array with paths to the private key and certificate.
+     * Whether the stored seal key is missing or not protected by a passphrase.
      */
-    public function getUserCertificate(User $user): array
+    public function systemKeyNeedsRotation(): bool
     {
-        $certPath = "certificates/{$user->id}.crt";
-        $keyPath = "certificates/{$user->id}.key";
-        
-        // If certificate doesn't exist, generate one
-        if (!Storage::exists($certPath) || !Storage::exists($keyPath)) {
-            $this->generateCertificate($user);
-        }
-        
+        $keyPath = config('signing.seal.key_path');
+
+        return Storage::exists($keyPath) && !$this->isEncrypted(Storage::get($keyPath));
+    }
+
+    /**
+     * Serial, fingerprint and validity of a PEM certificate.
+     */
+    public function describe(string $certPem): array
+    {
+        $parsed = openssl_x509_parse($certPem);
+
         return [
-            'cert' => Storage::path($certPath),
-            'key' => Storage::path($keyPath),
+            'serial' => $parsed['serialNumber'] ?? 'unknown',
+            'fingerprint' => strtoupper((string) openssl_x509_fingerprint($certPem, 'sha256')),
+            'valid_from' => isset($parsed['validFrom_time_t']) ? date('Y-m-d H:i:s', $parsed['validFrom_time_t']) : null,
+            'valid_to' => isset($parsed['validTo_time_t']) ? date('Y-m-d H:i:s', $parsed['validTo_time_t']) : null,
         ];
     }
-    
+
     /**
-     * Generate a self-signed certificate for the user.
+     * Generate a self-signed seal whose private key is encrypted with the passphrase.
      */
-    protected function generateCertificate(User $user): void
+    protected function generateSystemCertificate(string $passphrase): void
     {
-        // 1. Generate Private Key
         $privKey = openssl_pkey_new([
-            "private_key_bits" => 2048,
-            "private_key_type" => OPENSSL_KEYTYPE_RSA,
+            'private_key_bits' => (int) config('signing.seal.key_bits', 3072),
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
         ]);
-        
-        // 2. Create CSR (Certificate Signing Request)
+
         $dn = [
-            "commonName" => $user->name,
-            "emailAddress" => $user->email,
-            "organizationName" => "DigitalSign Internal PKI",
-            "organizationalUnitName" => $user->department ? $user->department->name : "General",
-            "countryName" => "ID"
+            'commonName' => config('app.name', 'TTD Digital') . ' Segel Sistem Internal',
+            'emailAddress' => config('mail.from.address', 'noreply@uniga.ac.id'),
+            'organizationName' => config('app.name', 'TTD Digital'),
+            'organizationalUnitName' => 'Segel Sistem Internal (tidak tersertifikasi PSrE)',
+            'countryName' => 'ID',
         ];
-        
-        $csr = openssl_csr_new($dn, $privKey, ["digest_alg" => "sha256"]);
-        
-        // 3. Self-sign the cert with explicit SHA-256 and unique serial (SEC-13)
-        // Valid for 365 days
-        $serial = time() + (int) $user->id;
-        $sscert = openssl_csr_sign($csr, null, $privKey, 365, ["digest_alg" => "sha256"], $serial);
-        
-        // 4. Export to files
-        openssl_x509_export($sscert, $certout);
-        openssl_pkey_export($privKey, $pkeyout);
-        
-        // 5. Save to storage
-        // Ensure directory exists
+
+        $csr = openssl_csr_new($dn, $privKey, ['digest_alg' => 'sha256']);
+        $serial = random_int(1, PHP_INT_MAX);
+        $cert = openssl_csr_sign($csr, null, $privKey, (int) config('signing.seal.validity_days'), ['digest_alg' => 'sha256'], $serial);
+
+        openssl_x509_export($cert, $certOut);
+        openssl_pkey_export($privKey, $keyOut, $passphrase, [
+            'encrypt_key_cipher' => OPENSSL_CIPHER_AES_256_CBC,
+        ]);
+
         Storage::makeDirectory('certificates');
-        
-        Storage::put("certificates/{$user->id}.crt", $certout);
-        Storage::put("certificates/{$user->id}.key", $pkeyout);
-        
-        // Free resources
-        // openssl_free_key($privKey); // Deprecated in PHP 8
+        Storage::put(config('signing.seal.cert_path'), $certOut);
+        Storage::put(config('signing.seal.key_path'), $keyOut);
+
+        $this->restrictPermissions();
+    }
+
+    /**
+     * Read the passphrase from config, refusing to run without a strong one.
+     */
+    protected function passphrase(): string
+    {
+        $passphrase = (string) config('signing.seal.passphrase');
+        $min = (int) config('signing.seal.min_passphrase_length', 16);
+
+        if (strlen($passphrase) < $min) {
+            throw new RuntimeException("SIGNING_SEAL_PASSPHRASE belum diatur atau kurang dari {$min} karakter.");
+        }
+
+        return $passphrase;
+    }
+
+    /**
+     * Refuse plaintext keys and keys the passphrase cannot open.
+     */
+    protected function assertKeyUsable(string $keyPem, string $passphrase): void
+    {
+        if (!$this->isEncrypted($keyPem)) {
+            throw new RuntimeException('Kunci segel sistem tidak terenkripsi. Jalankan `php artisan seal:rotate` untuk menerbitkan kunci baru yang terenkripsi.');
+        }
+
+        if (openssl_pkey_get_private($keyPem, $passphrase) === false) {
+            throw new RuntimeException('SIGNING_SEAL_PASSPHRASE tidak cocok dengan kunci segel sistem.');
+        }
+    }
+
+    protected function isEncrypted(string $keyPem): bool
+    {
+        return str_contains($keyPem, 'BEGIN ENCRYPTED PRIVATE KEY')
+            || str_contains($keyPem, 'Proc-Type: 4,ENCRYPTED');
+    }
+
+    /**
+     * Owner-only access to the key and its directory (no-op on filesystems without POSIX modes).
+     */
+    protected function restrictPermissions(): void
+    {
+        $keyFile = Storage::path(config('signing.seal.key_path'));
+
+        if (is_file($keyFile)) {
+            @chmod($keyFile, 0600);
+            @chmod(dirname($keyFile), 0700);
+        }
     }
 }
