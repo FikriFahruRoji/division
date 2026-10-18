@@ -26,11 +26,17 @@ class LoginRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
-            // 'h-captcha-response' => ['required', 'HCaptcha'],
         ];
+
+        // Dikontrol lewat HCAPTCHA_ENABLED (config/HCaptcha.php); dimatikan di testing.
+        if (config('HCaptcha.enabled')) {
+            $rules['h-captcha-response'] = ['required', 'HCaptcha'];
+        }
+
+        return $rules;
     }
 
     /**
@@ -39,8 +45,8 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            // 'h-captcha-response.required' => 'Silakan verifikasi bahwa Anda bukan robot.',
-            // 'h-captcha-response.h_captcha' => 'Verifikasi CAPTCHA gagal. Silakan coba lagi.',
+            'h-captcha-response.required' => 'Silakan verifikasi bahwa Anda bukan robot.',
+            'h-captcha-response.h_captcha' => 'Verifikasi CAPTCHA gagal. Silakan coba lagi.',
         ];
     }
 

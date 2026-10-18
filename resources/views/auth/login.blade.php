@@ -32,14 +32,14 @@
             </label>
         </div>
 
-        {{-- 
+        @if (config('HCaptcha.enabled'))
         <div class="mt-4">
             {!! HCaptcha::display() !!}
             @error('h-captcha-response')
                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
             @enderror
-        </div> 
-        --}}
+        </div>
+        @endif
 
         <div class="flex items-center justify-end mt-4">
             @if (Route::has('password.request'))
