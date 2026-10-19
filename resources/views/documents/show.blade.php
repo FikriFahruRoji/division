@@ -27,7 +27,8 @@
     <div class="flex items-center gap-2">
         @php
             $isRejected = $document->status === 'rejected';
-            $lastRejection = $document->signerAssignments->where('status', 'rejected')->sortByDesc('updated_at')->first();
+            // Editing a rejected document closes its round (T4), so look across all rounds
+            $lastRejection = $document->allSignerAssignments->where('status', 'rejected')->sortByDesc('updated_at')->first();
             $isFixed = $isRejected && $lastRejection && $document->updated_at->timestamp > ($lastRejection->updated_at->timestamp + 5);
         @endphp
 
@@ -227,6 +228,51 @@
                 </div>
             </div>
         </div>
+
+        <!-- Previous Signing Rounds (T4) -->
+        @php
+            $pastRounds = $document->allSignerAssignments->whereNotNull('superseded_at')->groupBy('revision');
+            $pastSignatures = $document->signatureHistory->whereNotNull('superseded_at');
+        @endphp
+        @if($pastRounds->isNotEmpty())
+        <div class="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-border-color dark:border-zinc-700 overflow-hidden">
+            <div class="p-6">
+                <h4 class="font-bold text-text-main dark:text-white mb-1">Riwayat Putaran</h4>
+                <p class="text-xs text-text-secondary mb-4">Putaran sebelumnya disimpan permanen. Saat ini putaran ke-{{ $document->revision }}.</p>
+                <div class="space-y-4">
+                    @foreach($pastRounds as $revision => $assignments)
+                    <div>
+                        <p class="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+                            Putaran {{ $revision }} · ditutup {{ $assignments->first()->superseded_at->format('d/m/Y H:i') }}
+                        </p>
+                        <div class="space-y-2">
+                            @foreach($assignments as $assignment)
+                            <div class="p-3 bg-background-light dark:bg-zinc-700 rounded-lg">
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="text-sm font-medium text-text-main dark:text-white">{{ $assignment->signer->name }}</p>
+                                    @if($assignment->status === 'signed')
+                                    <span class="text-xs text-green-600 font-medium">Ditandatangani {{ $assignment->signed_at?->format('d/m/Y H:i') }}</span>
+                                    @elseif($assignment->status === 'rejected')
+                                    <span class="text-xs text-red-600 font-medium">Ditolak</span>
+                                    @else
+                                    <span class="text-xs text-text-secondary">Tidak ditindaklanjuti</span>
+                                    @endif
+                                </div>
+                                @if($assignment->rejection_reason)
+                                <p class="mt-1 text-xs text-red-700 dark:text-red-300"><strong>Alasan:</strong> {{ $assignment->rejection_reason }}</p>
+                                @endif
+                                @foreach($pastSignatures->where('revision', $revision)->where('signer_id', $assignment->signer_id) as $signature)
+                                <p class="mt-1 text-[11px] font-mono text-text-secondary break-all" title="SHA-256 PDF hasil tanda tangan">{{ $signature->signed_hash }}</p>
+                                @endforeach
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
 
         <!-- QR Code -->
         @if($document->signed_file_path)

@@ -21,7 +21,21 @@ class Signature extends Model
         'ip_address',
         'user_agent',
         'auth_method',
+        'revision',
+        'superseded_at',
     ];
+
+    protected $casts = [
+        'superseded_at' => 'datetime',
+    ];
+
+    /**
+     * Whether a later signing round replaced this signature.
+     */
+    public function isSuperseded(): bool
+    {
+        return $this->superseded_at !== null;
+    }
 
     /**
      * Get the document this signature belongs to.

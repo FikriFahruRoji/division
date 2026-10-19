@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Http\Requests\UpdateDocumentRequest;
 use App\Models\Department;
+use App\Models\AuditLog;
 use App\Models\Document;
 use App\Models\User;
 use App\Services\DocumentService;
@@ -120,7 +121,7 @@ class DocumentController extends Controller
     {
         $this->authorize('view', $document);
 
-        $document->load(['creator', 'signerAssignments.signer', 'signatures.signer', 'auditLogs.user']);
+        $document->load(['creator', 'signerAssignments.signer', 'signatures.signer', 'auditLogs.user', 'allSignerAssignments.signer', 'signatureHistory']);
         
         return view('documents.show', compact('document'));
     }
@@ -175,6 +176,19 @@ class DocumentController extends Controller
     public function destroy(Document $document)
     {
         $this->authorize('delete', $document);
+
+        // Record before deleting: the audit entry outlives the document row
+        AuditLog::log(
+            'delete',
+            "Dokumen '{$document->title}' dihapus",
+            auth()->id(),
+            $document->id,
+            [
+                'doc_number' => $document->doc_number,
+                'status' => $document->status,
+                'hash' => $document->hash,
+            ]
+        );
         
         // Delete file
         if ($document->file_path) {

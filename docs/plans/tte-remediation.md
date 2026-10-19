@@ -79,13 +79,20 @@ Tujuan: menutup celah paling berbahaya sekarang, dan menyiapkan fondasi untuk Fa
 - **Selesai jika:** kunci di disk terenkripsi, tidak ada kunci per-user tersisa.
 - Label: `ready-for-agent`
 
-### T4. Riwayat tanda tangan append-only (G8)
+### T4. Riwayat tanda tangan append-only (G8) ✅ Selesai 2026-10-19
+> Setiap pengajuan = satu putaran (`documents.revision`). Saat dokumen ditolak lalu diedit/diajukan ulang, assignment & tanda tangan putaran lama diberi `superseded_at` (tidak dihapus; `updated_at` asli dipertahankan) dan tercatat `round_superseded` di audit.
+> Relasi `signerAssignments()`/`signatures()` hanya putaran aktif; `allSignerAssignments()`/`signatureHistory()` untuk riwayat, tampil di detail dokumen.
+> File PDF lama tidak dihapus saat diganti (path + hash lama/baru di audit); FK `signatures` kini `RESTRICT` dan dokumen yang pernah ditandatangani tidak bisa dihapus.
 - Ganti `signatures()->delete()` saat re-finalisasi menjadi penandaan `superseded_at`/`status = superseded`.
 - Dokumen yang direvisi mendapat versi baru (`version`++). Hash setiap versi disimpan.
 - **Selesai jika:** setelah reject → revisi → sign ulang, semua tanda tangan lama masih ada dengan status superseded (ada test).
 - Label: `ready-for-agent`
 
-### T5. Audit log tahan rusak (G7)
+### T5. Audit log tahan rusak (G7) ✅ Selesai 2026-10-19
+> Hash chain SHA-256 (`prev_hash` → `entry_hash`, unique index menjaga rantai tetap linear); UPDATE/DELETE diblokir di model dan trigger DB (SQLite/MySQL/PostgreSQL).
+> FK `ON DELETE SET NULL` dilepas karena diam-diam menulis ulang baris audit; penghapusan dokumen kini dicatat.
+> `audit:verify-chain` mendeteksi entri diubah/dihapus/disisipkan dan rantai yang dibangun ulang (via anchor); `audit:anchor` terjadwal 23:55 dan dikirim ke `AUDIT_ANCHOR_EMAILS`.
+> Belum: storage WORM / anchoring ke pihak ketiga (mis. TSA, lihat T9); pastikan `schedule:run` aktif di cron server.
 - Tambahkan kolom `prev_hash` dan `entry_hash` (SHA-256 dari isi entri + `prev_hash`) untuk membentuk hash chain.
 - Blok UPDATE/DELETE pada `audit_logs` (trigger DB + guard di model).
 - Command `audit:verify-chain` untuk mendeteksi rantai yang putus, dan job harian yang mengekspor hash terakhir ke lokasi terpisah (email ke pejabat, atau storage WORM).
@@ -130,6 +137,7 @@ Tujuan: menutup celah paling berbahaya sekarang, dan menyiapkan fondasi untuk Fa
 - Label: `ready-for-agent`
 
 ### T12. Multi-signer dengan incremental update (G9)
+- Catatan dari T4: `applyVisualSignature` memanggil `PdfCompatibilityService::ensureCompatible()` pada file sumber **setelah** cek hash; untuk penanda tangan kedua dst. ini bisa menimpa PDF yang sudah ditandatangani. Harus dihapus saat multi-signer diaktifkan.
 - QR dan stempel visual ditempel **sekali sebelum** tanda tangan pertama. Setiap tanda tangan berikutnya memakai incremental update dari PSrE/engine D4, sehingga tanda tangan sebelumnya tetap valid.
 - Aktifkan kembali mode `sequential`/`parallel` yang sekarang dipaksa `single`.
 - **Selesai jika:** PDF dengan 2 penanda tangan menunjukkan 2 tanda tangan valid di Adobe Reader.

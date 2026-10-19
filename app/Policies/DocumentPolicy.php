@@ -108,6 +108,11 @@ class DocumentPolicy
             return false;
         }
 
+        // T4: a document that was ever signed, even in a superseded round, is evidence and stays
+        if ($document->signatureHistory()->exists()) {
+            return false;
+        }
+
         // Super admin can delete all non-signed
         if ($user->isSuperAdmin()) {
             return true;

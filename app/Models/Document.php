@@ -14,6 +14,13 @@ class Document extends Model
 {
     use HasFactory, DepartmentScope;
 
+    /**
+     * Mirror DB defaults so freshly created models carry them before a reload.
+     */
+    protected $attributes = [
+        'revision' => 1,
+    ];
+
     protected $fillable = [
         'uuid',
         'title',
@@ -24,6 +31,7 @@ class Document extends Model
         'classification',
         'status',
         'version',
+        'revision',
         'creator_id',
         'department_id',
         'parent_id',
@@ -101,15 +109,32 @@ class Document extends Model
      */
     public function signerAssignments(): HasMany
     {
-        return $this->hasMany(SignerAssignment::class)->orderBy('order_index');
+        // Current signing round only; earlier rounds are kept with superseded_at set (T4)
+        return $this->hasMany(SignerAssignment::class)->whereNull('superseded_at')->orderBy('order_index');
     }
 
     /**
-     * Get signatures for this document.
+     * Signer assignments from every signing round, newest round first.
+     */
+    public function allSignerAssignments(): HasMany
+    {
+        return $this->hasMany(SignerAssignment::class)->orderByDesc('revision')->orderBy('order_index');
+    }
+
+    /**
+     * Get signatures for the current signing round.
      */
     public function signatures(): HasMany
     {
-        return $this->hasMany(Signature::class);
+        return $this->hasMany(Signature::class)->whereNull('superseded_at');
+    }
+
+    /**
+     * Signatures from every signing round, including superseded ones.
+     */
+    public function signatureHistory(): HasMany
+    {
+        return $this->hasMany(Signature::class)->orderByDesc('revision')->orderBy('created_at');
     }
 
     /**

@@ -18,11 +18,14 @@ class SignerAssignment extends Model
         'notified_at',
         'signed_at',
         'rejection_reason',
+        'revision',
+        'superseded_at',
     ];
 
     protected $casts = [
         'notified_at' => 'datetime',
         'signed_at' => 'datetime',
+        'superseded_at' => 'datetime',
     ];
 
     /**

@@ -254,8 +254,9 @@ class DocumentService
     {
         $this->validateFileSecurity($file);
         
-        // Save old file path to delete only after new file is persisted (SEC-22)
+        // T4: the previous file is kept (it may be the version a signer rejected); its path and hash go to the audit trail
         $oldFilePath = $document->file_path;
+        $oldHash = $document->hash;
         
         // Generate new filename
         $randomFilename = Str::uuid() . '.pdf';
@@ -276,11 +277,6 @@ class DocumentService
             'fingerprint' => $fingerprint,
         ]);
 
-        // Delete old file only after successful DB update
-        if ($oldFilePath && Storage::disk('local')->exists($oldFilePath)) {
-             Storage::disk('local')->delete($oldFilePath);
-        }
-        
         // Update VerificationRecord
         $document->verificationRecord?->update([
             'fingerprint' => $fingerprint,
@@ -290,7 +286,14 @@ class DocumentService
             'file_update',
             "File dokumen '{$document->title}' diperbarui",
             auth()->id(),
-            $document->id
+            $document->id,
+            [
+                'revision' => $document->revision,
+                'previous_file_path' => $oldFilePath,
+                'previous_hash' => $oldHash,
+                'new_file_path' => $path,
+                'new_hash' => $hash,
+            ]
         );
         
         return $document;

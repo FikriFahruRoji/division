@@ -42,13 +42,16 @@ class SigningService
         $originalPath = Storage::disk('local')->path($document->file_path);
         $originalHash = hash_file('sha256', $originalPath);
 
+        // T4: a round that was signed or rejected is kept as history, not overwritten
+        $this->closeRoundIfUsed($document);
+
         $document->update([
             'sign_mode' => $mode,
             'signed_file_path' => null,
             'hash' => $originalHash
         ]);
         
-        // Remove existing assignments
+        // Remove assignments of the current round that nobody has acted on yet
         $document->signerAssignments()->delete();
         
         // Create new assignments
@@ -57,6 +60,7 @@ class SigningService
                 'document_id' => $document->id,
                 'signer_id' => $signerId,
                 'order_index' => $index + 1,
+                'revision' => $document->revision,
                 'status' => 'pending',
             ]);
         }
@@ -84,12 +88,24 @@ class SigningService
                 throw new \Exception('Dokumen tidak dapat diajukan karena status saat ini bukan draft atau perbaikan (' . $lockedDoc->status . ').');
             }
 
-            // Reset assignments and signatures (in case of re-finalization after rejection)
-            $lockedDoc->signerAssignments()->update([
-                'status' => 'pending',
-                'signed_at' => null,
-                'rejection_reason' => null
-            ]);
+            // T4: re-submission after rejection starts a new round; the old one stays as history
+            $closedRevision = $lockedDoc->revision;
+            if ($this->closeRoundIfUsed($lockedDoc)) {
+                $previous = $lockedDoc->allSignerAssignments()->where('revision', $closedRevision)->get();
+                foreach ($previous as $assignment) {
+                    SignerAssignment::create([
+                        'document_id' => $lockedDoc->id,
+                        'signer_id' => $assignment->signer_id,
+                        'order_index' => $assignment->order_index,
+                        'revision' => $lockedDoc->revision,
+                        'status' => 'pending',
+                    ]);
+                }
+            }
+
+            if ($lockedDoc->signerAssignments()->doesntExist()) {
+                throw new \Exception('Dokumen belum memiliki penandatangan untuk diajukan.');
+            }
 
             // Update document status and clear signed file (Reset to original)
             $originalPath = Storage::disk('local')->path($lockedDoc->file_path);
@@ -97,9 +113,6 @@ class SigningService
                 throw new \Exception('Berkas asli dokumen tidak ditemukan di penyimpanan.');
             }
             $originalHash = hash_file('sha256', $originalPath);
-
-            // Delete old signatures on re-finalization (SEC-18)
-            $lockedDoc->signatures()->delete();
 
             $lockedDoc->update([
                 'status' => 'pending_signature',
@@ -121,11 +134,50 @@ class SigningService
                 'finalize',
                 "Dokumen '{$lockedDoc->title}' difinalisasi dan siap untuk ditandatangani",
                 auth()->id() ?? $lockedDoc->creator_id,
-                $lockedDoc->id
+                $lockedDoc->id,
+                ['revision' => $lockedDoc->revision]
             );
         });
     }
     
+    /**
+     * Close the current signing round when someone has signed or rejected in it:
+     * its assignments and signatures are marked superseded (never deleted) and
+     * the document moves to the next revision. Returns whether a round was closed.
+     */
+    protected function closeRoundIfUsed(Document $document): bool
+    {
+        $assignmentIds = $document->signerAssignments()->pluck('id');
+        $signatureIds = $document->signatures()->pluck('id');
+        $acted = $document->signerAssignments()->whereIn('status', ['signed', 'rejected'])->exists();
+
+        if (!$acted && $signatureIds->isEmpty()) {
+            return false;
+        }
+
+        $closedRevision = $document->revision;
+        $now = now();
+
+        // toBase(): keep updated_at, which still records when the signer acted
+        SignerAssignment::whereIn('id', $assignmentIds)->toBase()->update(['superseded_at' => $now]);
+        Signature::whereIn('id', $signatureIds)->toBase()->update(['superseded_at' => $now]);
+        $document->update(['revision' => $closedRevision + 1]);
+
+        AuditLog::log(
+            'round_superseded',
+            "Putaran tanda tangan ke-{$closedRevision} dokumen '{$document->title}' ditutup dan disimpan sebagai riwayat",
+            auth()->id() ?? $document->creator_id,
+            $document->id,
+            [
+                'closed_revision' => $closedRevision,
+                'assignment_ids' => $assignmentIds->all(),
+                'signature_ids' => $signatureIds->all(),
+            ]
+        );
+
+        return true;
+    }
+
     /**
      * Mark signers as notified based on signing mode.
      */
@@ -223,6 +275,7 @@ class SigningService
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
                 'auth_method' => $authMethod,
+                'revision' => $lockedDoc->revision,
             ]);
             
             // Update document with new signed file path

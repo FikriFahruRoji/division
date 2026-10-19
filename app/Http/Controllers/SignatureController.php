@@ -164,7 +164,8 @@ class SignatureController extends Controller
     {
         $user = auth()->user();
         
-        $documents = Document::whereHas('signerAssignments', function ($query) use ($user) {
+        // Include rounds that were later superseded: the signer still signed them (T4)
+        $documents = Document::whereHas('allSignerAssignments', function ($query) use ($user) {
             $query->where('signer_id', $user->id)
                   ->where('status', 'signed');
         })
